@@ -35,20 +35,11 @@
     return `${redirectTo}?redirect=${encodeURIComponent(currentPath)}`;
   };
 
-  const redirectToFirebaseSetup = () => {
-    window.location.replace(getRedirectUrl("firebase-setup.html"));
-  };
-
   const redirectToLogin = (redirectTo) => {
     window.location.replace(getRedirectUrl(redirectTo));
   };
 
   const waitForAuth = (redirectTo, startedAt) => {
-    if (window.industrialFirebaseConfigStatus && !window.industrialFirebaseConfigStatus.hasConfig) {
-      redirectToFirebaseSetup();
-      return;
-    }
-
     const auth = window.industrialFirebase && window.industrialFirebase.auth;
 
     if (auth) {
@@ -76,11 +67,6 @@
     }
 
     if (Date.now() - startedAt >= AUTH_CHECK_TIMEOUT_MS) {
-      if (window.industrialFirebaseConfigStatus && !window.industrialFirebaseConfigStatus.hasConfig) {
-        redirectToFirebaseSetup();
-        return;
-      }
-
       redirectToLogin(redirectTo);
       return;
     }
