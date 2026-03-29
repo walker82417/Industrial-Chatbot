@@ -142,6 +142,29 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
+            const [authUser, setAuthUser] = React.useState(null);
+            const [authReady, setAuthReady] = React.useState(false);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                const storedEmail = localStorage.getItem('userEmail');
+                const fallbackUser = storedEmail
+                    ? { displayName: localStorage.getItem('profileName') || storedEmail.split('@')[0], email: storedEmail }
+                    : null;
+
+                if (!auth) {
+                    setAuthUser(fallbackUser);
+                    setAuthReady(true);
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || fallbackUser);
+                    setAuthReady(true);
+                });
+
+                return () => unsubscribe();
+            }, []);
 
             // Get current page to highlight active link
             const getCurrentPage = () => {
@@ -175,6 +198,19 @@
                         </div>
 
                         <div className="flex items-center space-x-4">
+                            {!authReady ? (
+                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
+                            ) : authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : null}
                             <a
                                 href="login.html"
                                 className="text-secondary-on-dark hover:text-on-dark transition-colors"
@@ -421,6 +457,10 @@
                                 <div className="bg-slate-800 rounded-lg p-4">
                                     <h4 className="font-medium text-on-dark mb-2">Need Help?</h4>
                                     <p className="text-sm text-secondary-on-dark mb-3">Contact our support team for assistance.</p>
+                                    <button
+                                        className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2 transition-colors"
+                                        onClick={() => window.location.href = "about.html"}
+                                    >
                                     <button className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2 transition-colors">
                                         Contact Support
                                     </button>

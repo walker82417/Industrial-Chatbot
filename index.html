@@ -327,6 +327,24 @@
                 { name: "Settings", path: "Settings.html" }
             ];
             const [authUser, setAuthUser] = React.useState(null);
+            const [authReady, setAuthReady] = React.useState(false);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                const storedEmail = localStorage.getItem('userEmail');
+                const fallbackUser = storedEmail
+                    ? { displayName: localStorage.getItem('profileName') || storedEmail.split('@')[0], email: storedEmail }
+                    : null;
+
+                if (!auth) {
+                    setAuthUser(fallbackUser);
+                    setAuthReady(true);
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || fallbackUser);
+                    setAuthReady(true);
 
             React.useEffect(() => {
                 const auth = window.industrialFirebase && window.industrialFirebase.auth;
@@ -372,6 +390,9 @@
                         </div>
 
                         <div className="flex items-center space-x-4 slide-in-right">
+                            {!authReady ? (
+                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
+                            ) : authUser ? (
                             {authUser ? (
                                 <button
                                     onClick={() => window.location.href = "Settings.html?tab=profile"}

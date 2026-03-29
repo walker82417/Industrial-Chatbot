@@ -3,6 +3,7 @@ window.industrialAuthService = {
     return Boolean(window.industrialFirebase && window.industrialFirebase.auth);
   },
 
+  async signUp({ fullName, companyName, phoneNumber, jobTitle, email, password }) {
   async signUp({ fullName, companyName, phoneNumber, email, password }) {
     if (!this.isConfigured()) {
       throw new Error("Firebase is not configured yet.");
@@ -21,6 +22,7 @@ window.industrialAuthService = {
         fullName,
         companyName,
         phoneNumber,
+        jobTitle,
         email,
         createdAt: new Date().toISOString()
       });
