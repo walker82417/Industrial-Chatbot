@@ -4,20 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/auth-guard.js"></script>
+
     <!-- Custom Styles -->
     <style>
         /* Custom animations */
@@ -31,53 +36,53 @@
                 transform: translateY(0);
             }
         }
-        
+
         .fade-in-slide-up {
             animation: fadeInSlideUp 0.6s ease-out forwards;
         }
-        
+
         /* Hover effects for cards */
         .card-hover {
             transition: all 0.3s ease;
         }
-        
+
         .card-hover:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
         }
-        
+
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
@@ -88,21 +93,21 @@
     <script type="text/javascript">
         // Mock Data
         const mockMachines = [
-            { 
-                id: 1, 
-                name: "Induction Motor", 
-                status: "warning", 
-                location: "Factory Floor 1", 
-                lastMaintenance: "NA", 
+            {
+                id: 1,
+                name: "Induction Motor",
+                status: "warning",
+                location: "Factory Floor 1",
+                lastMaintenance: "NA",
                 type: "motor",
                 image: "https://imgs.search.brave.com/L1ida3rt4P22VzR2yBDBI77xk8z7ny03QG4GnRty4fE/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90My5m/dGNkbi5uZXQvanBn/LzA5LzIxLzE5LzQ2/LzM2MF9GXzkyMTE5/NDYzNV84YTRBSDBW/dUlGRndmZU5RWTlp/RzJySW9wZlZHNmVz/Ui5qcGc"
             },
-            { 
-                id: 2, 
-                name: "Gear Hobbing Machine", 
-                status: "normal", 
-                location: "Factory Floor 1", 
-                lastMaintenance: "NA", 
+            {
+                id: 2,
+                name: "Gear Hobbing Machine",
+                status: "normal",
+                location: "Factory Floor 1",
+                lastMaintenance: "NA",
                 type: "gear",
                 image: "https://imgs.search.brave.com/My55eOXatDIHhz49Hy3Q7o78rMCklVz7v4ShIBNCC5A/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcu/eW91dHViZS5jb20v/dmkvbllzbFZrM1No/bzgvaHFkZWZhdWx0/LmpwZw"
             }
@@ -119,16 +124,33 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+            const [authReady, setAuthReady] = React.useState(false);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) {
+                    setAuthReady(true);
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
+                    setAuthReady(true);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             // Get current page to highlight active link
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -137,10 +159,10 @@
                                 <i data-lucide="activity" className="w-8 h-8 text-blue-500 mr-2"></i>
                                 <span className="text-xl font-bold text-on-dark">Industrial Chatbot</span>
                             </div>
-                            
+
                             <div className="hidden md:flex space-x-8 relative">
                                 {navLinks.map((link) => (
-                                    <a 
+                                    <a
                                         key={link.name}
                                         href={link.path}
                                         className={`nav-link nav-link-dark px-1 py-2 ${currentPage === link.path ? 'active' : ''}`}
@@ -150,20 +172,21 @@
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-4">
-                            <a 
-                                href="login.html"
-                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
-                            >
-                                Sign In
-                            </a>
-                            <a 
-                                href="signup.html"
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Sign Up
-                            </a>
+                            {!authReady ? (
+                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
+                            ) : authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : null}
                         </div>
                     </div>
                 </nav>
@@ -172,14 +195,74 @@
 
         // Dashboard Component
         const Dashboard = () => {
-            const needsAttention = mockMachines.filter(machine => machine.status !== 'normal');
-            const otherMachines = mockMachines.filter(machine => machine.status === 'normal');
-            
+            const [machines, setMachines] = React.useState(mockMachines);
+            const [subscriptionInfo, setSubscriptionInfo] = React.useState(null);
+            const needsAttention = machines.filter(machine => machine.status !== 'normal');
+            const otherMachines = machines.filter(machine => machine.status === 'normal');
+
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
+                const storedSubscription = localStorage.getItem('subscription');
+                if (storedSubscription) {
+                    try {
+                        setSubscriptionInfo(JSON.parse(storedSubscription));
+                    } catch (error) {
+                        console.error('Failed to parse subscription:', error);
+                    }
+                }
             }, []);
-            
+
+            const getPlanLimit = (plan) => {
+                if (plan === 'basic') return 5;
+                if (plan === 'premium') return 20;
+                return Number.POSITIVE_INFINITY;
+            };
+
+            const getSubscriptionStatus = () => {
+                if (!subscriptionInfo) return { text: 'No active subscription', expiresOn: '-', active: false, limit: 0 };
+
+                const now = new Date();
+                const start = new Date(subscriptionInfo.timestamp);
+                const expiry = new Date(start.getTime() + (30 * 24 * 60 * 60 * 1000));
+                const active = now <= expiry;
+                return {
+                    text: `${subscriptionInfo.plan?.toUpperCase() || 'UNKNOWN'} Plan`,
+                    expiresOn: expiry.toLocaleDateString(),
+                    active,
+                    limit: getPlanLimit(subscriptionInfo.plan)
+                };
+            };
+
+            const subscriptionStatus = getSubscriptionStatus();
+
+            const handleAddMachine = () => {
+                if (!subscriptionStatus.active) {
+                    alert('Please activate a subscription plan before adding machines.');
+                    window.location.href = 'subscription.html';
+                    return;
+                }
+
+                if (machines.length >= subscriptionStatus.limit) {
+                    alert(`Your ${subscriptionStatus.text} allows up to ${subscriptionStatus.limit} machines.`);
+                    return;
+                }
+
+                const name = prompt('Enter machine name:');
+                if (!name) return;
+                const location = prompt('Enter machine location:', 'Factory Floor 1') || 'Factory Floor 1';
+                const newMachine = {
+                    id: Date.now(),
+                    name,
+                    status: 'normal',
+                    location,
+                    lastMaintenance: new Date().toLocaleDateString(),
+                    type: 'custom',
+                    image: 'https://images.unsplash.com/photo-1581092160607-ee22731a4b97?auto=format&fit=crop&w=1200&q=60'
+                };
+                setMachines(prev => [...prev, newMachine]);
+            };
+
             const getStatusColor = (status) => {
                 switch (status) {
                     case 'critical': return 'bg-red-500';
@@ -187,7 +270,7 @@
                     default: return 'bg-green-500';
                 }
             };
-            
+
             const getStatusText = (status) => {
                 switch (status) {
                     case 'critical': return 'Critical';
@@ -195,22 +278,38 @@
                     default: return 'Normal';
                 }
             };
-            
+
             return (
                 <div>
                     <NavBar />
                     <div className="p-8">
                         <div className="flex justify-between items-center mb-8">
                             <h1 className="text-2xl font-bold text-on-dark">Machine Status</h1>
-                            <button 
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
-                                onClick={() => window.location.href = "maintenance.html"}
-                            >
-                                <i data-lucide="calendar" className="w-5 h-5 mr-2"></i>
-                                Maintenance Schedules
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+                                    onClick={handleAddMachine}
+                                >
+                                    <i data-lucide="plus" className="w-5 h-5 mr-2"></i>
+                                    Add Machine
+                                </button>
+                                <button
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+                                    onClick={() => window.location.href = "maintenance.html"}
+                                >
+                                    <i data-lucide="calendar" className="w-5 h-5 mr-2"></i>
+                                    Maintenance Schedules
+                                </button>
+                            </div>
                         </div>
-                        
+
+                        <div className="card-on-dark rounded-xl p-4 mb-8 border border-slate-700">
+                            <p className="text-on-dark font-medium">Subscription: {subscriptionStatus.text}</p>
+                            <p className="text-secondary-on-dark text-sm">
+                                Expiry Date: {subscriptionStatus.expiresOn} • Machine Limit: {Number.isFinite(subscriptionStatus.limit) ? subscriptionStatus.limit : 'Unlimited'}
+                            </p>
+                        </div>
+
                         {/* Needs Attention Section */}
                         {needsAttention.length > 0 && (
                             <div className="mb-10">
@@ -220,14 +319,14 @@
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {needsAttention.map(machine => (
-                                        <div 
-                                            key={machine.id} 
+                                        <div
+                                            key={machine.id}
                                             className="card-on-dark rounded-xl shadow-md overflow-hidden card-hover cursor-pointer"
                                             onClick={() => window.location.href = `machine-detail.html?id=${machine.id}`}
                                         >
                                             <div className="h-40 overflow-hidden">
-                                                <img 
-                                                    src={machine.image} 
+                                                <img
+                                                    src={machine.image}
                                                     alt={machine.name}
                                                     className="w-full h-full object-cover"
                                                 />
@@ -248,7 +347,7 @@
                                 </div>
                             </div>
                         )}
-                        
+
                         {/* Other Machines Section */}
                         <div>
                             <h2 className="text-xl font-semibold text-secondary-on-dark mb-4 flex items-center">
@@ -257,14 +356,14 @@
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {otherMachines.map(machine => (
-                                    <div 
-                                        key={machine.id} 
+                                    <div
+                                        key={machine.id}
                                         className="card-on-dark rounded-xl shadow-md overflow-hidden card-hover cursor-pointer"
                                         onClick={() => window.location.href = `machine-detail.html?id=${machine.id}`}
                                     >
                                         <div className="h-40 overflow-hidden">
-                                            <img 
-                                                src={machine.image} 
+                                            <img
+                                                src={machine.image}
                                                 alt={machine.name}
                                                 className="w-full h-full object-cover"
                                             />
@@ -295,15 +394,11 @@
         };
 
 
-        
+
         // Render the app
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 
 </html>
-
-
-
-
 

@@ -4,61 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Machine Detail - Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/auth-guard.js"></script>
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Custom Styles -->
     <style>
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
-        
+
         /* Chart container */
         .chart-container {
             position: relative;
@@ -79,11 +84,11 @@
             { id: 5, name: "Welding Robot E", status: "warning", location: "Factory Floor 3", lastMaintenance: "2023-05-28", type: "robot" },
             { id: 6, name: "Conveyor Belt F", status: "normal", location: "Factory Floor 3", lastMaintenance: "2023-06-22", type: "conveyor" }
         ];
-        
+
         // Get machine ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const machineId = urlParams.get('id');
-        
+
         // Utility function to get machine by ID
         const getMachineById = (id) => {
             return mockMachines.find(machine => machine.id === parseInt(id));
@@ -100,16 +105,33 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+            const [authReady, setAuthReady] = React.useState(false);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) {
+                    setAuthReady(true);
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
+                    setAuthReady(true);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             // Get current page to highlight active link
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -118,10 +140,10 @@
                                 <i data-lucide="activity" className="w-8 h-8 text-blue-500 mr-2"></i>
                                 <span className="text-xl font-bold text-on-dark">Industrial Chatbot</span>
                             </div>
-                            
+
                             <div className="hidden md:flex space-x-8 relative">
                                 {navLinks.map((link) => (
-                                    <a 
+                                    <a
                                         key={link.name}
                                         href={link.path}
                                         className={`nav-link nav-link-dark px-1 py-2 ${currentPage === link.path ? 'active' : ''}`}
@@ -131,20 +153,21 @@
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-4">
-                            <a 
-                                href="login.html"
-                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
-                            >
-                                Sign In
-                            </a>
-                            <a 
-                                href="signup.html"
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Sign Up
-                            </a>
+                            {!authReady ? (
+                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
+                            ) : authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : null}
                         </div>
                     </div>
                 </nav>
@@ -159,14 +182,14 @@
             const [speedData, setSpeedData] = React.useState([]);
             const [currentData, setCurrentData] = React.useState([]);
             const [timeLabels, setTimeLabels] = React.useState([]);
-            
+
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
-                
+
                 // Initialize charts
                 let tempChart, vibChart, speedChart, currentChart;
-                
+
                 const initCharts = () => {
                     // Generate initial data
                     const now = new Date();
@@ -175,15 +198,15 @@
                     const vibValues = [];
                     const speedValues = [];
                     const currentValues = [];
-                    
+
                     // Generate 60 data points (1 minute of data)
                     for (let i = 59; i >= 0; i--) {
                         const time = new Date(now - i * 1000);
-                        labels.push(time.toLocaleTimeString());
-                        
+                        labels.push(time.toLocaleString());
+
                         // Generate realistic values based on machine type
                         let baseTemp, baseVib, baseSpeed, baseCurrent;
-                        
+
                         switch(machine.type) {
                             case 'cnc':
                                 baseTemp = 70; baseVib = 3.5; baseSpeed = 1200; baseCurrent = 18;
@@ -206,20 +229,20 @@
                             default:
                                 baseTemp = 65; baseVib = 2.5; baseSpeed = 50; baseCurrent = 15;
                         }
-                        
+
                         // Add some random variation
                         tempValues.push(baseTemp + (Math.random() - 0.5) * 10);
                         vibValues.push(baseVib + (Math.random() - 0.5) * 2);
                         speedValues.push(baseSpeed + (Math.random() - 0.5) * 20);
                         currentValues.push(baseCurrent + (Math.random() - 0.5) * 5);
                     }
-                    
+
                     setTimeLabels(labels);
                     setTemperatureData(tempValues);
                     setVibrationData(vibValues);
                     setSpeedData(speedValues);
                     setCurrentData(currentValues);
-                    
+
                     // Temperature Chart
                     const tempCtx = document.getElementById('tempChart').getContext('2d');
                     tempChart = new Chart(tempCtx, {
@@ -233,7 +256,9 @@
                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                 borderWidth: 2,
                                 tension: 0.4,
-                                fill: true
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 0
                             }]
                         },
                         options: {
@@ -269,7 +294,7 @@
                             }
                         }
                     });
-                    
+
                     // Vibration Chart
                     const vibCtx = document.getElementById('vibChart').getContext('2d');
                     vibChart = new Chart(vibCtx, {
@@ -283,7 +308,9 @@
                                 backgroundColor: 'rgba(234, 179, 8, 0.1)',
                                 borderWidth: 2,
                                 tension: 0.4,
-                                fill: true
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 0
                             }]
                         },
                         options: {
@@ -319,7 +346,7 @@
                             }
                         }
                     });
-                    
+
                     // Speed Chart
                     const speedCtx = document.getElementById('speedChart').getContext('2d');
                     speedChart = new Chart(speedCtx, {
@@ -333,7 +360,9 @@
                                 backgroundColor: 'rgba(34, 197, 94, 0.1)',
                                 borderWidth: 2,
                                 tension: 0.4,
-                                fill: true
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 0
                             }]
                         },
                         options: {
@@ -369,7 +398,7 @@
                             }
                         }
                     });
-                    
+
                     // Current Chart
                     const currentCtx = document.getElementById('currentChart').getContext('2d');
                     currentChart = new Chart(currentCtx, {
@@ -383,7 +412,9 @@
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 borderWidth: 2,
                                 tension: 0.4,
-                                fill: true
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 0
                             }]
                         },
                         options: {
@@ -419,20 +450,20 @@
                             }
                         }
                     });
-                    
+
                     return { tempChart, vibChart, speedChart, currentChart };
                 };
-                
+
                 const charts = initCharts();
-                
+
                 // Update charts every second
                 const interval = setInterval(() => {
                     const now = new Date();
-                    const newTime = now.toLocaleTimeString();
-                    
+                    const newTime = now.toLocaleString();
+
                     // Generate new values based on machine type
                     let baseTemp, baseVib, baseSpeed, baseCurrent;
-                    
+
                     switch(machine.type) {
                         case 'cnc':
                             baseTemp = 70; baseVib = 3.5; baseSpeed = 1200; baseCurrent = 18;
@@ -455,44 +486,44 @@
                         default:
                             baseTemp = 65; baseVib = 2.5; baseSpeed = 50; baseCurrent = 15;
                     }
-                    
+
                     // Add some random variation
                     const newTemp = baseTemp + (Math.random() - 0.5) * 10;
                     const newVib = baseVib + (Math.random() - 0.5) * 2;
                     const newSpeed = baseSpeed + (Math.random() - 0.5) * 20;
                     const newCurrent = baseCurrent + (Math.random() - 0.5) * 5;
-                    
+
                     // Update data arrays
                     const newLabels = [...timeLabels.slice(1), newTime];
                     const newTempData = [...temperatureData.slice(1), newTemp];
                     const newVibData = [...vibrationData.slice(1), newVib];
                     const newSpeedData = [...speedData.slice(1), newSpeed];
                     const newCurrentData = [...currentData.slice(1), newCurrent];
-                    
+
                     setTimeLabels(newLabels);
                     setTemperatureData(newTempData);
                     setVibrationData(newVibData);
                     setSpeedData(newSpeedData);
                     setCurrentData(newCurrentData);
-                    
+
                     // Update charts
                     charts.tempChart.data.labels = newLabels;
                     charts.tempChart.data.datasets[0].data = newTempData;
                     charts.tempChart.update('none');
-                    
+
                     charts.vibChart.data.labels = newLabels;
                     charts.vibChart.data.datasets[0].data = newVibData;
                     charts.vibChart.update('none');
-                    
+
                     charts.speedChart.data.labels = newLabels;
                     charts.speedChart.data.datasets[0].data = newSpeedData;
                     charts.speedChart.update('none');
-                    
+
                     charts.currentChart.data.labels = newLabels;
                     charts.currentChart.data.datasets[0].data = newCurrentData;
                     charts.currentChart.update('none');
                 }, 1000);
-                
+
                 // Cleanup on unmount
                 return () => {
                     clearInterval(interval);
@@ -502,7 +533,7 @@
                     if (charts.currentChart) charts.currentChart.destroy();
                 };
             }, [machineId]);
-            
+
             if (!machine) {
                 return (
                     <div className="p-8">
@@ -510,7 +541,7 @@
                         <div className="mt-16">
                             <h1 className="text-2xl font-bold text-on-dark mb-4">Machine Not Found</h1>
                             <p className="text-secondary-on-dark">The requested machine does not exist.</p>
-                            <button 
+                            <button
                                 className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
                                 onClick={() => window.location.href = "dashboard.html"}
                             >
@@ -520,7 +551,7 @@
                     </div>
                 );
             }
-            
+
             const getStatusColor = (status) => {
                 switch (status) {
                     case 'critical': return 'text-red-600 bg-red-100';
@@ -528,7 +559,7 @@
                     default: return 'text-green-600 bg-green-100';
                 }
             };
-            
+
             const getStatusText = (status) => {
                 switch (status) {
                     case 'critical': return 'Critical';
@@ -536,7 +567,24 @@
                     default: return 'Normal';
                 }
             };
-            
+
+            const handleExportCsv = () => {
+                if (!timeLabels.length) return;
+                let csv = 'Date Time,Temperature (°F),Vibration (mm/s),Speed (RPM),Current (A)\n';
+                for (let i = 0; i < timeLabels.length; i++) {
+                    csv += `${timeLabels[i]},${temperatureData[i]?.toFixed(2) || ''},${vibrationData[i]?.toFixed(2) || ''},${speedData[i]?.toFixed(2) || ''},${currentData[i]?.toFixed(2) || ''}\n`;
+                }
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${machine.name.replace(/\s+/g, '_')}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
             return (
                 <div>
                     <NavBar />
@@ -544,7 +592,7 @@
                         <div className="mb-8">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <button 
+                                    <button
                                         className="flex items-center text-blue-400 hover:text-blue-300 mb-4"
                                         onClick={() => window.location.href = "dashboard.html"}
                                     >
@@ -557,6 +605,15 @@
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(machine.status)}`}>
                                     {getStatusText(machine.status)}
                                 </span>
+                            </div>
+                            <div className="mt-4">
+                                <button
+                                    onClick={handleExportCsv}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+                                >
+                                    <i data-lucide="download" className="w-4 h-4 mr-2"></i>
+                                    Export Machine Data (CSV)
+                                </button>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
