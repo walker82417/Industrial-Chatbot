@@ -4,27 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chat - Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/auth-guard.js"></script>
+
     <!-- Custom Styles -->
     <style>
         /* Chat messages */
         .chat-message {
             animation: fadeInSlideUp 0.3s ease-out;
         }
-        
+
         @keyframes fadeInSlideUp {
             from {
                 opacity: 0;
@@ -35,49 +40,49 @@
                 transform: translateY(0);
             }
         }
-        
+
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
-        
+
         /* Typing indicator */
         .typing-indicator {
             display: inline-flex;
             align-items: center;
         }
-        
+
         .typing-indicator span {
             height: 8px;
             width: 8px;
@@ -87,15 +92,15 @@
             margin: 0 2px;
             animation: typing 1.4s infinite;
         }
-        
+
         .typing-indicator span:nth-child(2) {
             animation-delay: 0.2s;
         }
-        
+
         .typing-indicator span:nth-child(3) {
             animation-delay: 0.4s;
         }
-        
+
         @keyframes typing {
             0%, 60%, 100% {
                 transform: translateY(0);
@@ -137,16 +142,28 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) return;
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             // Get current page to highlight active link
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -155,10 +172,10 @@
                                 <i data-lucide="activity" className="w-8 h-8 text-blue-500 mr-2"></i>
                                 <span className="text-xl font-bold text-on-dark">Industrial Chatbot</span>
                             </div>
-                            
+
                             <div className="hidden md:flex space-x-8 relative">
                                 {navLinks.map((link) => (
-                                    <a 
+                                    <a
                                         key={link.name}
                                         href={link.path}
                                         className={`nav-link nav-link-dark px-1 py-2 ${currentPage === link.path ? 'active' : ''}`}
@@ -168,31 +185,35 @@
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-4">
-                            <a 
-                                href="login.html"
-                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
-                            >
-                                Sign In
-                            </a>
-                            <a 
-                                href="signup.html"
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Sign Up
-                            </a>
+                            {authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : (
+                                <>
+                                    <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                                    <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
+                                </>
+                            )}
                         </div>
                     </div>
                 </nav>
             );
         };
-        
+
         // Subscription Check Component
         const SubscriptionCheck = ({ children }) => {
             const [hasSubscription, setHasSubscription] = React.useState(false);
             const [isLoading, setIsLoading] = React.useState(true);
-            
+
             React.useEffect(() => {
                 // Check subscription status
                 const savedSubscription = localStorage.getItem('subscription');
@@ -202,7 +223,7 @@
                         const now = new Date();
                         const subDate = new Date(subscription.timestamp);
                         const daysSinceSub = Math.floor((now - subDate) / (1000 * 60 * 60 * 24));
-                        
+
                         setHasSubscription(daysSinceSub <= 30);
                     } catch (e) {
                         console.error('Error parsing subscription data:', e);
@@ -213,7 +234,7 @@
                 }
                 setIsLoading(false);
             }, []);
-            
+
             if (isLoading) {
                 return (
                     <div className="flex items-center justify-center h-screen">
@@ -224,7 +245,7 @@
                     </div>
                 );
             }
-            
+
             if (!hasSubscription) {
                 return (
                     <div className="flex flex-col items-center justify-center h-screen p-8">
@@ -237,13 +258,13 @@
                                 You need an active subscription to access the AI Chat feature. Please subscribe to one of our plans to unlock this feature.
                             </p>
                             <div className="space-y-4">
-                                <button 
+                                <button
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
                                     onClick={() => window.location.href = "subscription.html"}
                                 >
                                     View Subscription Plans
                                 </button>
-                                <button 
+                                <button
                                     className="w-full bg-slate-800 hover:bg-slate-700 text-on-dark px-6 py-3 rounded-lg transition-colors"
                                     onClick={() => window.location.href = "dashboard.html"}
                                 >
@@ -254,41 +275,41 @@
                     </div>
                 );
             }
-            
+
             return children;
         };
-        
+
         // AI Chat Component
         const AIChat = () => {
             const [message, setMessage] = React.useState('');
             const [messages, setMessages] = React.useState(mockChatMessages);
             const [isTyping, setIsTyping] = React.useState(false);
             const chatContainerRef = React.useRef(null);
-            
+
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
-                
+
                 // Scroll to bottom of chat
                 if (chatContainerRef.current) {
                     chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
                 }
             }, [messages]);
-            
+
             const handleSendMessage = () => {
                 if (message.trim() === '') return;
-                
+
                 const newMessage = {
                     id: messages.length + 1,
                     sender: 'user',
                     text: message,
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
-                
+
                 setMessages([...messages, newMessage]);
                 setMessage('');
                 setIsTyping(true);
-                
+
                 // Simulate AI response after a delay
                 setTimeout(() => {
                     const aiResponse = {
@@ -301,22 +322,22 @@
                     setIsTyping(false);
                 }, 1500);
             };
-            
+
             const handleKeyPress = (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage();
                 }
             };
-            
+
             const handleTopicClick = (topic) => {
                 setMessage(`Tell me about ${topic.toLowerCase()}`);
             };
-            
+
             return (
                 <div className="flex flex-col h-screen">
                     <NavBar />
-                    
+
                     <div className="flex flex-1 overflow-hidden">
                         {/* Main Chat Area */}
                         <div className="flex-1 flex flex-col">
@@ -332,13 +353,13 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Chat Messages */}
                             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-slate-950">
                                 <div className="max-w-3xl mx-auto">
                                     {messages.map(msg => (
-                                        <div 
-                                            key={msg.id} 
+                                        <div
+                                            key={msg.id}
                                             className={`mb-4 chat-message ${msg.sender === 'user' ? 'text-right' : ''}`}
                                         >
                                             <div className={`inline-block max-w-xs md:max-w-md px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'card-on-dark border border-slate-700 text-on-dark'}`}>
@@ -347,7 +368,7 @@
                                             </div>
                                         </div>
                                     ))}
-                                    
+
                                     {isTyping && (
                                         <div className="mb-4">
                                             <div className="inline-block card-on-dark border border-slate-700 px-4 py-2 rounded-lg">
@@ -361,7 +382,7 @@
                                     )}
                                 </div>
                             </div>
-                            
+
                             {/* Chat Input */}
                             <div className="card-on-dark border-t border-slate-800 p-4">
                                 <div className="max-w-3xl mx-auto flex">
@@ -383,13 +404,13 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Expert Topics Sidebar */}
                         <div className="w-64 card-on-dark border-l border-slate-800 p-4 flex flex-col">
                             <h3 className="font-semibold text-on-dark mb-4">Expert Topics</h3>
                             <div className="space-y-2 mb-8">
                                 {expertTopics.map((topic, index) => (
-                                    <button 
+                                    <button
                                         key={index}
                                         className="w-full text-left bg-slate-800 hover:bg-slate-700 rounded-lg px-4 py-2 transition-colors text-secondary-on-dark"
                                         onClick={() => handleTopicClick(topic)}
@@ -398,7 +419,7 @@
                                     </button>
                                 ))}
                             </div>
-                            
+
                             <h3 className="font-semibold text-on-dark mb-4">Quick Actions</h3>
                             <div className="space-y-2">
                                 <button className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
@@ -411,7 +432,7 @@
                                     Generate Report
                                 </button>
                             </div>
-                            
+
                             <div className="mt-auto pt-6">
                                 <div className="bg-slate-800 rounded-lg p-4">
                                     <h4 className="font-medium text-on-dark mb-2">Need Help?</h4>
@@ -426,7 +447,7 @@
                 </div>
             );
         };
-        
+
         // Main App Component
         const App = () => {
             return (
@@ -435,7 +456,7 @@
                 </SubscriptionCheck>
             );
         };
-        
+
         // Render the app
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
