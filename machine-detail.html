@@ -198,6 +198,28 @@
                                     </button>
                                 </>
                             ) : null}
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : null}
+                            <a
+                                href="login.html"
+                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
+                            >
+                                Sign In
+                            </a>
+                            <a
+                                href="signup.html"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                            >
+                                Sign Up
+                            </a>
                         </div>
                     </div>
                 </nav>
@@ -233,6 +255,7 @@
                     for (let i = 59; i >= 0; i--) {
                         const time = new Date(now - i * 1000);
                         labels.push(time.toLocaleString());
+                        labels.push(time.toLocaleTimeString());
 
                         // Generate realistic values based on machine type
                         let baseTemp, baseVib, baseSpeed, baseCurrent;
@@ -289,6 +312,7 @@
                                 fill: true,
                                 pointRadius: 0,
                                 pointHoverRadius: 0
+                                fill: true
                             }]
                         },
                         options: {
@@ -341,6 +365,7 @@
                                 fill: true,
                                 pointRadius: 0,
                                 pointHoverRadius: 0
+                                fill: true
                             }]
                         },
                         options: {
@@ -393,6 +418,7 @@
                                 fill: true,
                                 pointRadius: 0,
                                 pointHoverRadius: 0
+                                fill: true
                             }]
                         },
                         options: {
@@ -445,6 +471,7 @@
                                 fill: true,
                                 pointRadius: 0,
                                 pointHoverRadius: 0
+                                fill: true
                             }]
                         },
                         options: {
@@ -490,6 +517,7 @@
                 const interval = setInterval(() => {
                     const now = new Date();
                     const newTime = now.toLocaleString();
+                    const newTime = now.toLocaleTimeString();
 
                     // Generate new values based on machine type
                     let baseTemp, baseVib, baseSpeed, baseCurrent;

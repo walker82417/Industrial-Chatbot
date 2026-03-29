@@ -88,6 +88,7 @@
             if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
                 setMessageType('error');
                 setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
+                setMessage('Firebase is not configured yet. Create js/firebase-config.js before testing sign in.');
                 return;
             }
 
@@ -185,3 +186,4 @@
 </body>
 
 </html>
+

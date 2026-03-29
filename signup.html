@@ -72,6 +72,14 @@
                 email: '',
                 password: ''
             });
+    const AuthPage = () => {
+        const [formData, setFormData] = React.useState({
+            fullName: '',
+            companyName: '',
+            phoneNumber: '',
+            email: '',
+            password: ''
+        });
 
         React.useEffect(() => {
             lucide.createIcons();
@@ -93,6 +101,7 @@
             if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
                 setMessageType('error');
                 setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
+                setMessage('Firebase is not configured yet. Create js/firebase-config.js before testing sign up.');
                 return;
             }
 
@@ -218,3 +227,4 @@
 </body>
 
 </html>
+
