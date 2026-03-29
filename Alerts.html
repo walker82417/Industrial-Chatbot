@@ -4,54 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alerts - Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/auth-guard.js"></script>
+
     <!-- Custom Styles -->
     <style>
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
@@ -75,23 +80,35 @@
     <script type="text/babel">
         // Navigation Bar Component
         const NavBar = () => {
-            const navLinks = [ 
-                { name: "Home", path: "index.html" }, 
-                { name: "Dashboard", path: "dashboard.html" }, 
-                { name: "Analytics", path: "Analytics.html" }, 
-                { name: "Alerts", path: "Alerts.html" }, 
-                { name: "AI Chat", path: "AI Chat.html" }, 
-                { name: "Settings", path: "Settings.html" } 
+            const navLinks = [
+                { name: "Home", path: "index.html" },
+                { name: "Dashboard", path: "dashboard.html" },
+                { name: "Analytics", path: "Analytics.html" },
+                { name: "Alerts", path: "Alerts.html" },
+                { name: "AI Chat", path: "AI Chat.html" },
+                { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) return;
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -109,14 +126,21 @@
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
-                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
+                            <button
+                                onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                            >
+                                <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                    {(authUser?.displayName || authUser?.email || "U").charAt(0).toUpperCase()}
+                                </span>
+                                <span className="hidden md:inline">{authUser?.displayName || "Profile"}</span>
+                            </button>
                         </div>
                     </div>
                 </nav>
             );
         };
-        
+
         // Alerts Component
         const Alerts = () => {
             const [filters, setFilters] = React.useState({
@@ -124,32 +148,32 @@
                 type: '',
                 status: 'active'
             });
-            
+
             const filteredAlerts = React.useMemo(() => {
                 return mockAlerts.filter(alert => {
                     return (
                         (filters.machine === '' || alert.machineName.toLowerCase().includes(filters.machine.toLowerCase())) &&
                         (filters.type === '' || alert.type === filters.type) &&
-                        (filters.status === 'all' || 
+                        (filters.status === 'all' ||
                          (filters.status === 'active' && !alert.resolved) ||
                          (filters.status === 'resolved' && alert.resolved))
                     );
                 });
             }, [filters]);
-            
+
             const criticalAlerts = filteredAlerts.filter(alert => alert.type === 'critical' && !alert.resolved);
             const warningAlerts = filteredAlerts.filter(alert => alert.type === 'warning' && !alert.resolved);
             const infoAlerts = filteredAlerts.filter(alert => alert.type === 'info' && !alert.resolved);
             const resolvedAlerts = filteredAlerts.filter(alert => alert.resolved);
-            
+
             React.useEffect(() => {
                 lucide.createIcons();
             }, []);
-            
+
             const handleFilterChange = (key, value) => {
                 setFilters(prev => ({ ...prev, [key]: value }));
             };
-            
+
             const getAlertBorderClass = (type) => {
                 switch (type) {
                     case 'critical': return 'border-red-500';
@@ -158,7 +182,7 @@
                     default: return 'border-slate-600';
                 }
             };
-            
+
             const getAlertIcon = (type) => {
                 switch (type) {
                     case 'critical': return 'alert-circle';
@@ -167,7 +191,7 @@
                     default: return 'bell';
                 }
             };
-            
+
             const getAlertIconColor = (type) => {
                 switch (type) {
                     case 'critical': return 'text-red-500';
@@ -176,13 +200,13 @@
                     default: return 'text-slate-500';
                 }
             };
-            
+
             return (
                 <div>
                     <NavBar />
                     <div className="container mx-auto p-8">
                         <h1 className="text-2xl font-bold text-on-dark mb-8">Alert Management</h1>
-                        
+
                         {/* Filter Section */}
                         <div className="card-on-dark rounded-xl shadow-md p-6 mb-8">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -196,7 +220,7 @@
                                         onChange={(e) => handleFilterChange('machine', e.target.value)}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-secondary-on-dark mb-2">Alert Type</label>
                                     <select
@@ -210,7 +234,7 @@
                                         <option value="info">Info</option>
                                     </select>
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-secondary-on-dark mb-2">Status</label>
                                     <select
@@ -223,7 +247,7 @@
                                         <option value="all">All</option>
                                     </select>
                                 </div>
-                                
+
                                 <div className="flex items-end">
                                     <button
                                         className="w-full bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -234,7 +258,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                             <div className="card-on-dark rounded-xl shadow-md p-6">
@@ -248,7 +272,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="card-on-dark rounded-xl shadow-md p-6">
                                 <div className="flex items-center">
                                     <div className="w-12 h-12 bg-red-900 rounded-lg flex items-center justify-center mr-4">
@@ -260,7 +284,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="card-on-dark rounded-xl shadow-md p-6">
                                 <div className="flex items-center">
                                     <div className="w-12 h-12 bg-yellow-900 rounded-lg flex items-center justify-center mr-4">
@@ -272,7 +296,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="card-on-dark rounded-xl shadow-md p-6">
                                 <div className="flex items-center">
                                     <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center mr-4">
@@ -287,7 +311,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Active Alerts */}
                         {(filters.status === 'active' || filters.status === 'all') && (
                             <div className="mb-8">
@@ -320,7 +344,7 @@
                                             </div>
                                         </div>
                                     ))}
-                                    
+
                                     {[...criticalAlerts, ...warningAlerts, ...infoAlerts].length === 0 && (
                                         <div className="p-8 text-center text-slate-400">
                                             <i data-lucide="check-circle" className="w-12 h-12 mx-auto mb-3 text-green-500"></i>
@@ -330,7 +354,7 @@
                                 </div>
                             </div>
                         )}
-                        
+
                         {/* Resolved Alerts */}
                         {(filters.status === 'resolved' || filters.status === 'all') && (
                             <div>
@@ -359,7 +383,7 @@
                                             </div>
                                         </div>
                                     ))}
-                                    
+
                                     {resolvedAlerts.length === 0 && (
                                         <div className="p-8 text-center text-slate-400">
                                             <i data-lucide="check-circle" className="w-12 h-12 mx-auto mb-3 text-green-500"></i>
@@ -373,7 +397,7 @@
                 </div>
             );
         };
-        
+
         // Main App Component
         const App = () => {
             return (
@@ -382,7 +406,7 @@
                 </div>
             );
         };
-        
+
         // Render the app
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
