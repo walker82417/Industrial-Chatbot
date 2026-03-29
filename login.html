@@ -101,6 +101,7 @@
                 localStorage.setItem("token", token);
                 localStorage.setItem("userEmail", user.email || '');
                 localStorage.setItem("userId", user.uid);
+                localStorage.setItem("profileName", user.displayName || '');
 
                 const redirectTarget = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
 
