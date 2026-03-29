@@ -28,6 +28,9 @@ This project is now prepared for:
    - copy `js/firebase-config.example.js` to `js/firebase-config.js`, or
    - open `firebase-setup.html` in the browser and paste your Firebase web app config there.
 5. Deploy the repository to Vercel.
+4. Copy `js/firebase-config.example.js` to `js/firebase-config.js`.
+5. Replace the placeholder values in `js/firebase-config.js` with your Firebase web app config.
+6. Deploy the repository to Vercel.
 
 ### Vercel deployment steps
 

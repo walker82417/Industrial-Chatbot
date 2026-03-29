@@ -345,6 +345,13 @@
                 const unsubscribe = auth.onAuthStateChanged((user) => {
                     setAuthUser(user || fallbackUser);
                     setAuthReady(true);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) return;
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
                 });
 
                 return () => unsubscribe();
@@ -419,6 +426,16 @@
                                         Sign Out
                                     </button>
                                 </>
+                            {authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
                             ) : (
                                 <>
                                     <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
