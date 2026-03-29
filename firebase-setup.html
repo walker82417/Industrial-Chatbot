@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Setup - Industrial Monitoring Web App</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        .brand-dark {
+            background-color: #020617;
+            background-image:
+                radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
+                radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
+                radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
+        }
+
+        .card-on-dark {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-on-dark {
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            color: #f8fafc;
+        }
+
+        .input-on-dark::placeholder {
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="brand-dark min-h-screen text-slate-100">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="card-on-dark rounded-xl shadow-2xl w-full max-w-2xl p-8">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold">Connect Firebase</h1>
+                <p class="text-slate-300 mt-2">
+                    Paste your Firebase Web App configuration here once. We will save it in this browser so the app can connect without editing code.
+                </p>
+            </div>
+
+            <form id="firebase-setup-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input class="input-on-dark rounded-lg px-4 py-3" name="apiKey" placeholder="apiKey" required>
+                <input class="input-on-dark rounded-lg px-4 py-3" name="authDomain" placeholder="authDomain" required>
+                <input class="input-on-dark rounded-lg px-4 py-3 md:col-span-2" name="databaseURL" placeholder="databaseURL" required>
+                <input class="input-on-dark rounded-lg px-4 py-3" name="projectId" placeholder="projectId" required>
+                <input class="input-on-dark rounded-lg px-4 py-3" name="storageBucket" placeholder="storageBucket" required>
+                <input class="input-on-dark rounded-lg px-4 py-3" name="messagingSenderId" placeholder="messagingSenderId" required>
+                <input class="input-on-dark rounded-lg px-4 py-3 md:col-span-2" name="appId" placeholder="appId" required>
+                <input class="input-on-dark rounded-lg px-4 py-3 md:col-span-2" name="measurementId" placeholder="measurementId (optional)">
+
+                <div id="setup-message" class="md:col-span-2 hidden rounded-lg px-4 py-3 text-sm"></div>
+
+                <div class="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                        Save Firebase Connection
+                    </button>
+                    <button type="button" id="clear-config" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                        Clear Saved Config
+                    </button>
+                    <a href="login.html" class="border border-slate-600 hover:border-slate-500 text-slate-200 font-medium py-3 px-6 rounded-lg transition-colors text-center">
+                        Back to Login
+                    </a>
+                </div>
+            </form>
+
+            <div class="mt-8 text-sm text-slate-300 space-y-2">
+                <p><strong>Where to find this?</strong> Firebase Console → Project Settings → Your apps → Web app → SDK setup and configuration.</p>
+                <p>After saving, we will send you to the login page so you can sign in and continue.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "industrialFirebaseConfig";
+        const form = document.getElementById("firebase-setup-form");
+        const message = document.getElementById("setup-message");
+        const redirectTarget = new URLSearchParams(window.location.search).get("redirect") || "dashboard.html";
+
+        const showMessage = (text, type) => {
+            message.textContent = text;
+            message.className = "md:col-span-2 rounded-lg px-4 py-3 text-sm";
+            message.classList.remove("hidden");
+
+            if (type === "error") {
+                message.classList.add("bg-red-500/10", "text-red-300", "border", "border-red-500/30");
+                return;
+            }
+
+            message.classList.add("bg-emerald-500/10", "text-emerald-300", "border", "border-emerald-500/30");
+        };
+
+        const loadStoredConfig = () => {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch (error) {
+                console.error("Could not read saved Firebase config:", error);
+                return null;
+            }
+        };
+
+        const fillForm = (config) => {
+            if (!config) {
+                return;
+            }
+
+            Object.entries(config).forEach(([key, value]) => {
+                if (form.elements[key]) {
+                    form.elements[key].value = value;
+                }
+            });
+        };
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+
+            const formData = new FormData(form);
+            const config = Object.fromEntries(formData.entries());
+
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+                showMessage("Firebase configuration saved. Redirecting to login...", "success");
+                window.setTimeout(() => {
+                    window.location.href = `login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+                }, 800);
+            } catch (error) {
+                console.error(error);
+                showMessage("Could not save the Firebase configuration in this browser.", "error");
+            }
+        });
+
+        document.getElementById("clear-config").addEventListener("click", () => {
+            localStorage.removeItem(STORAGE_KEY);
+            form.reset();
+            showMessage("Saved Firebase configuration cleared from this browser.", "success");
+        });
+
+        fillForm(loadStoredConfig());
+    </script>
+</body>
+</html>
