@@ -4,54 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-database-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/auth-guard.js"></script>
+
     <!-- Custom Styles -->
     <style>
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
@@ -62,23 +68,35 @@
     <script type="text/babel">
         // Navigation Bar Component
         const NavBar = () => {
-            const navLinks = [ 
-                { name: "Home", path: "index.html" }, 
-                { name: "Dashboard", path: "dashboard.html" }, 
-                { name: "Analytics", path: "Analytics.html" }, 
-                { name: "Alerts", path: "Alerts.html" }, 
-                { name: "AI Chat", path: "AI Chat.html" }, 
-                { name: "Settings", path: "Settings.html" } 
+            const navLinks = [
+                { name: "Home", path: "index.html" },
+                { name: "Dashboard", path: "dashboard.html" },
+                { name: "Analytics", path: "Analytics.html" },
+                { name: "Alerts", path: "Alerts.html" },
+                { name: "AI Chat", path: "AI Chat.html" },
+                { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                if (!auth) return;
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || null);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -96,22 +114,43 @@
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
-                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
+                            {authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : (
+                                <>
+                                    <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                                    <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
+                                </>
+                            )}
                         </div>
                     </div>
                 </nav>
             );
         };
-        
+
         // Settings Component
         const Settings = () => {
-            const [activeTab, setActiveTab] = React.useState('profile');
+            const [activeTab, setActiveTab] = React.useState(() => {
+                const initialTab = new URLSearchParams(window.location.search).get('tab');
+                const allowedTabs = ['profile', 'notifications', 'security', 'subscription', 'integration'];
+                return allowedTabs.includes(initialTab) ? initialTab : 'profile';
+            });
             const [subscription, setSubscription] = React.useState(null);
-            
+            const [profileData, setProfileData] = React.useState(null);
+            const [profileLoading, setProfileLoading] = React.useState(true);
+            const [profileError, setProfileError] = React.useState('');
+
             React.useEffect(() => {
                 lucide.createIcons();
-                
+
                 // Check subscription status
                 const savedSubscription = localStorage.getItem('subscription');
                 if (savedSubscription) {
@@ -122,7 +161,64 @@
                     }
                 }
             }, [activeTab]);
-            
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                const database = window.industrialFirebase && window.industrialFirebase.database;
+
+                if (!auth) {
+                    setProfileLoading(false);
+                    setProfileError('Authentication is not available.');
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged(async (user) => {
+                    if (!user) {
+                        setProfileData(null);
+                        setProfileLoading(false);
+                        setProfileError('Please sign in to view your profile.');
+                        return;
+                    }
+
+                    setProfileLoading(true);
+                    setProfileError('');
+
+                    const fallbackProfile = {
+                        fullName: user.displayName || '',
+                        email: user.email || '',
+                        companyName: '',
+                        phoneNumber: '',
+                        jobTitle: ''
+                    };
+
+                    if (!database) {
+                        setProfileData(fallbackProfile);
+                        setProfileLoading(false);
+                        return;
+                    }
+
+                    try {
+                        const snapshot = await database.ref(`users/${user.uid}`).once('value');
+                        const dbProfile = snapshot.val() || {};
+                        setProfileData({
+                            fullName: dbProfile.fullName || fallbackProfile.fullName,
+                            email: dbProfile.email || fallbackProfile.email,
+                            companyName: dbProfile.companyName || '',
+                            phoneNumber: dbProfile.phoneNumber || '',
+                            jobTitle: dbProfile.jobTitle || ''
+                        });
+                    } catch (error) {
+                        console.error('Failed to load profile:', error);
+                        setProfileData(fallbackProfile);
+                        setProfileError('Could not load profile details from database.');
+                    } finally {
+                        setProfileLoading(false);
+                    }
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             const tabs = [
                 { id: 'profile', name: 'Profile', icon: 'user' },
                 { id: 'notifications', name: 'Notifications', icon: 'bell' },
@@ -130,11 +226,11 @@
                 { id: 'subscription', name: 'Subscription', icon: 'credit-card' },
                 { id: 'integration', name: 'System Integration', icon: 'plug' }
             ];
-            
+
             const handleUpgradeSubscription = () => {
                 window.location.href = "subscription.html";
             };
-            
+
             const getSubscriptionStatus = () => {
                 if (!subscription) {
                     return {
@@ -144,11 +240,11 @@
                         bgColor: 'bg-red-900'
                     };
                 }
-                
+
                 const now = new Date();
                 const subDate = new Date(subscription.timestamp);
                 const daysSinceSub = Math.floor((now - subDate) / (1000 * 60 * 60 * 24));
-                
+
                 if (daysSinceSub > 30) {
                     return {
                         status: 'expired',
@@ -157,7 +253,7 @@
                         bgColor: 'bg-red-900'
                     };
                 }
-                
+
                 return {
                     status: 'active',
                     text: `Active - ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} Plan`,
@@ -165,15 +261,15 @@
                     bgColor: 'bg-green-900'
                 };
             };
-            
+
             const subStatus = getSubscriptionStatus();
-            
+
             return (
                 <div>
                     <NavBar />
                     <div className="container mx-auto p-8">
                         <h1 className="text-2xl font-bold text-on-dark mb-8">Settings</h1>
-                        
+
                         <div className="flex flex-col md:flex-row gap-8">
                             {/* Settings Navigation */}
                             <div className="w-full md:w-64">
@@ -190,7 +286,7 @@
                                     ))}
                                 </div>
                             </div>
-                            
+
                             {/* Settings Content */}
                             <div className="flex-1">
                                 <div className="card-on-dark rounded-xl shadow-md p-6">
@@ -198,36 +294,40 @@
                                     {activeTab === 'profile' && (
                                         <div>
                                             <h2 className="text-xl font-semibold text-on-dark mb-6">Profile Settings</h2>
-                                            <div className="space-y-6">
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Full Name</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="John Doe" />
+                                            {profileLoading ? (
+                                                <p className="text-secondary-on-dark">Loading profile details...</p>
+                                            ) : (
+                                                <div className="space-y-6">
+                                                    {profileError && (
+                                                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 px-4 py-3 text-sm">
+                                                            {profileError}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <label className="block text-secondary-on-dark mb-2">Full Name</label>
+                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.fullName || 'Not provided'} readOnly />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-secondary-on-dark mb-2">Email</label>
+                                                        <input type="email" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.email || 'Not provided'} readOnly />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-secondary-on-dark mb-2">Company</label>
+                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.companyName || 'Not provided'} readOnly />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-secondary-on-dark mb-2">Phone Number</label>
+                                                        <input type="tel" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.phoneNumber || 'Not provided'} readOnly />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-secondary-on-dark mb-2">Job Title</label>
+                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.jobTitle || 'Not provided'} readOnly />
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Email</label>
-                                                    <input type="email" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="john.doe@example.com" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Company</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Acme Industries" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Phone Number</label>
-                                                    <input type="tel" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="+1 (555) 123-4567" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Job Title</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Plant Manager" />
-                                                </div>
-                                                <div className="pt-4">
-                                                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
-                                                        Save Changes
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
-                                    
+
                                     {/* Notification Settings */}
                                     {activeTab === 'notifications' && (
                                         <div>
@@ -268,7 +368,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Notification Methods</h3>
                                                     <div className="space-y-3">
@@ -304,7 +404,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="pt-4">
                                                     <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
                                                         Save Preferences
@@ -313,7 +413,7 @@
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {/* Security Settings */}
                                     {activeTab === 'security' && (
                                         <div>
@@ -339,7 +439,7 @@
                                                         </button>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Two-Factor Authentication</h3>
                                                     <div className="bg-slate-800 rounded-lg p-4 mb-4">
@@ -353,7 +453,7 @@
                                                         Enable Two-Factor Authentication
                                                     </button>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Active Sessions</h3>
                                                     <div className="space-y-3">
@@ -384,7 +484,7 @@
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {/* Subscription Settings */}
                                     {activeTab === 'subscription' && (
                                         <div>
@@ -397,7 +497,7 @@
                                                             {subStatus.text}
                                                         </span>
                                                     </div>
-                                                    
+
                                                     {subscription && (
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                                             <div>
@@ -410,9 +510,9 @@
                                                             </div>
                                                         </div>
                                                     )}
-                                                    
+
                                                     <div className="pt-4">
-                                                        <button 
+                                                        <button
                                                             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors w-full"
                                                             onClick={handleUpgradeSubscription}
                                                         >
@@ -420,7 +520,7 @@
                                                         </button>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Subscription Benefits</h3>
                                                     <div className="space-y-3">
@@ -442,7 +542,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Billing History</h3>
                                                     <div className="bg-slate-800 rounded-lg p-4">
@@ -452,7 +552,7 @@
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {/* System Integration Settings */}
                                     {activeTab === 'integration' && (
                                         <div>
@@ -475,7 +575,7 @@
                                                                 <i data-lucide="settings" className="w-5 h-5"></i>
                                                             </button>
                                                         </div>
-                                                        
+
                                                         <div className="flex items-center justify-between p-4 bg-slate-800 rounded-lg">
                                                             <div className="flex items-center">
                                                                 <div className="w-10 h-10 bg-green-900 rounded-lg flex items-center justify-center mr-4">
@@ -490,7 +590,7 @@
                                                                 <i data-lucide="settings" className="w-5 h-5"></i>
                                                             </button>
                                                         </div>
-                                                        
+
                                                         <div className="flex items-center justify-between p-4 bg-slate-800 rounded-lg">
                                                             <div className="flex items-center">
                                                                 <div className="w-10 h-10 bg-purple-900 rounded-lg flex items-center justify-center mr-4">
@@ -507,7 +607,7 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">Add New Integration</h3>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -525,7 +625,7 @@
                                                         </button>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <h3 className="font-medium text-on-dark mb-4">API Access</h3>
                                                     <div className="bg-slate-800 rounded-lg p-4 mb-4">
@@ -559,7 +659,7 @@
                 </div>
             );
         };
-        
+
         // Main App Component
         const App = () => {
             return (
@@ -568,7 +668,7 @@
                 </div>
             );
         };
-        
+
         // Render the app
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
