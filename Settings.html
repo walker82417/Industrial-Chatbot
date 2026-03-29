@@ -19,7 +19,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-database-compat.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
@@ -76,23 +75,6 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            const [authUser, setAuthUser] = React.useState(null);
-            const [authReady, setAuthReady] = React.useState(false);
-
-            React.useEffect(() => {
-                const auth = window.industrialFirebase && window.industrialFirebase.auth;
-                if (!auth) {
-                    setAuthReady(true);
-                    return;
-                }
-
-                const unsubscribe = auth.onAuthStateChanged((user) => {
-                    setAuthUser(user || null);
-                    setAuthReady(true);
-                });
-
-                return () => unsubscribe();
-            }, []);
 
             const getCurrentPage = () => {
                 const path = window.location.pathname;
@@ -119,19 +101,8 @@
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                            {!authReady ? (
-                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
-                            ) : authUser ? (
-                                <button
-                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
-                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
-                                >
-                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
-                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
-                                </button>
-                            ) : null}
+                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
                         </div>
                     </div>
                 </nav>
@@ -140,15 +111,8 @@
 
         // Settings Component
         const Settings = () => {
-            const [activeTab, setActiveTab] = React.useState(() => {
-                const initialTab = new URLSearchParams(window.location.search).get('tab');
-                const allowedTabs = ['profile', 'notifications', 'security', 'subscription', 'integration'];
-                return allowedTabs.includes(initialTab) ? initialTab : 'profile';
-            });
+            const [activeTab, setActiveTab] = React.useState('profile');
             const [subscription, setSubscription] = React.useState(null);
-            const [profileData, setProfileData] = React.useState(null);
-            const [profileLoading, setProfileLoading] = React.useState(true);
-            const [profileError, setProfileError] = React.useState('');
 
             React.useEffect(() => {
                 lucide.createIcons();
@@ -163,63 +127,6 @@
                     }
                 }
             }, [activeTab]);
-
-            React.useEffect(() => {
-                const auth = window.industrialFirebase && window.industrialFirebase.auth;
-                const database = window.industrialFirebase && window.industrialFirebase.database;
-
-                if (!auth) {
-                    setProfileLoading(false);
-                    setProfileError('Authentication is not available.');
-                    return;
-                }
-
-                const unsubscribe = auth.onAuthStateChanged(async (user) => {
-                    if (!user) {
-                        setProfileData(null);
-                        setProfileLoading(false);
-                        setProfileError('Please sign in to view your profile.');
-                        return;
-                    }
-
-                    setProfileLoading(true);
-                    setProfileError('');
-
-                    const fallbackProfile = {
-                        fullName: user.displayName || '',
-                        email: user.email || '',
-                        companyName: '',
-                        phoneNumber: '',
-                        jobTitle: ''
-                    };
-
-                    if (!database) {
-                        setProfileData(fallbackProfile);
-                        setProfileLoading(false);
-                        return;
-                    }
-
-                    try {
-                        const snapshot = await database.ref(`users/${user.uid}`).once('value');
-                        const dbProfile = snapshot.val() || {};
-                        setProfileData({
-                            fullName: dbProfile.fullName || fallbackProfile.fullName,
-                            email: dbProfile.email || fallbackProfile.email,
-                            companyName: dbProfile.companyName || '',
-                            phoneNumber: dbProfile.phoneNumber || '',
-                            jobTitle: dbProfile.jobTitle || ''
-                        });
-                    } catch (error) {
-                        console.error('Failed to load profile:', error);
-                        setProfileData(fallbackProfile);
-                        setProfileError('Could not load profile details from database.');
-                    } finally {
-                        setProfileLoading(false);
-                    }
-                });
-
-                return () => unsubscribe();
-            }, []);
 
             const tabs = [
                 { id: 'profile', name: 'Profile', icon: 'user' },
@@ -296,37 +203,33 @@
                                     {activeTab === 'profile' && (
                                         <div>
                                             <h2 className="text-xl font-semibold text-on-dark mb-6">Profile Settings</h2>
-                                            {profileLoading ? (
-                                                <p className="text-secondary-on-dark">Loading profile details...</p>
-                                            ) : (
-                                                <div className="space-y-6">
-                                                    {profileError && (
-                                                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 px-4 py-3 text-sm">
-                                                            {profileError}
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <label className="block text-secondary-on-dark mb-2">Full Name</label>
-                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.fullName || 'Not provided'} readOnly />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-secondary-on-dark mb-2">Email</label>
-                                                        <input type="email" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.email || 'Not provided'} readOnly />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-secondary-on-dark mb-2">Company</label>
-                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.companyName || 'Not provided'} readOnly />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-secondary-on-dark mb-2">Phone Number</label>
-                                                        <input type="tel" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.phoneNumber || 'Not provided'} readOnly />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-secondary-on-dark mb-2">Job Title</label>
-                                                        <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 bg-slate-900 text-on-dark" value={profileData?.jobTitle || 'Not provided'} readOnly />
-                                                    </div>
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <label className="block text-secondary-on-dark mb-2">Full Name</label>
+                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="John Doe" />
                                                 </div>
-                                            )}
+                                                <div>
+                                                    <label className="block text-secondary-on-dark mb-2">Email</label>
+                                                    <input type="email" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="john.doe@example.com" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-secondary-on-dark mb-2">Company</label>
+                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Acme Industries" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-secondary-on-dark mb-2">Phone Number</label>
+                                                    <input type="tel" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="+1 (555) 123-4567" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-secondary-on-dark mb-2">Job Title</label>
+                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Plant Manager" />
+                                                </div>
+                                                <div className="pt-4">
+                                                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                                                        Save Changes
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 
@@ -509,12 +412,6 @@
                                                             <div>
                                                                 <p className="text-secondary-on-dark">Since</p>
                                                                 <p className="font-medium text-on-dark">{new Date(subscription.timestamp).toLocaleDateString()}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-secondary-on-dark">Expiry Date</p>
-                                                                <p className="font-medium text-on-dark">
-                                                                    {new Date(new Date(subscription.timestamp).getTime() + (30 * 24 * 60 * 60 * 1000)).toLocaleDateString()}
-                                                                </p>
                                                             </div>
                                                         </div>
                                                     )}

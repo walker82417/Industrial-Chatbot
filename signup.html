@@ -63,15 +63,14 @@
 <body class="brand-dark min-h-screen">
     <div id="root"></div>
     <script type="text/babel">
-        const AuthPage = () => {
-            const [formData, setFormData] = React.useState({
-                fullName: '',
-                companyName: '',
-                phoneNumber: '',
-                jobTitle: '',
-                email: '',
-                password: ''
-            });
+    const AuthPage = () => {
+        const [formData, setFormData] = React.useState({
+            fullName: '',
+            companyName: '',
+            phoneNumber: '',
+            email: '',
+            password: ''
+        });
 
         React.useEffect(() => {
             lucide.createIcons();
@@ -92,7 +91,7 @@
 
             if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
                 setMessageType('error');
-                setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
+                setMessage('Firebase is not configured yet. Create js/firebase-config.js before testing sign up.');
                 return;
             }
 
@@ -153,15 +152,6 @@
                             required
                         />
                         <input
-                            type="text"
-                            name="jobTitle"
-                            value={formData.jobTitle}
-                            onChange={handleInputChange}
-                            placeholder="Job title"
-                            className="input-on-dark w-full rounded-lg px-4 py-3"
-                            required
-                        />
-                        <input
                             type="email"
                             name="email"
                             value={formData.email}
@@ -203,9 +193,6 @@
                     <p className="text-secondary-on-dark text-sm mt-6 text-center">
                         Already have an account? <a href="login.html" className="text-blue-400 hover:text-blue-300">Sign in</a>
                     </p>
-                    <p className="text-secondary-on-dark text-sm mt-3 text-center">
-                        Need to connect Firebase? <a href="firebase-setup.html" className="text-blue-400 hover:text-blue-300">Open setup page</a>
-                    </p>
                 </div>
             </div>
         );
@@ -218,3 +205,4 @@
 </body>
 
 </html>
+

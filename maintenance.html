@@ -87,23 +87,6 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            const [authUser, setAuthUser] = React.useState(null);
-            const [authReady, setAuthReady] = React.useState(false);
-
-            React.useEffect(() => {
-                const auth = window.industrialFirebase && window.industrialFirebase.auth;
-                if (!auth) {
-                    setAuthReady(true);
-                    return;
-                }
-
-                const unsubscribe = auth.onAuthStateChanged((user) => {
-                    setAuthUser(user || null);
-                    setAuthReady(true);
-                });
-
-                return () => unsubscribe();
-            }, []);
 
             const getCurrentPage = () => {
                 const path = window.location.pathname;
@@ -131,19 +114,8 @@
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                            {!authReady ? (
-                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
-                            ) : authUser ? (
-                                <button
-                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
-                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
-                                >
-                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
-                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
-                                </button>
-                            ) : null}
+                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
                         </div>
                     </div>
                 </nav>
