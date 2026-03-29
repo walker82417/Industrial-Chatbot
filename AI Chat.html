@@ -235,28 +235,6 @@
                                     </button>
                                 </>
                             ) : null}
-                                <button
-                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
-                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
-                                >
-                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
-                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
-                                </button>
-                            ) : null}
-                            <a
-                                href="login.html"
-                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
-                            >
-                                Sign In
-                            </a>
-                            <a
-                                href="signup.html"
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Sign Up
-                            </a>
                         </div>
                     </div>
                 </nav>
@@ -495,7 +473,6 @@
                                         className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2 transition-colors"
                                         onClick={() => window.location.href = "about.html"}
                                     >
-                                    <button className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2 transition-colors">
                                         Contact Support
                                     </button>
                                 </div>
@@ -516,7 +493,8 @@
         };
 
         // Render the app
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>

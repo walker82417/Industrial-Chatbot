@@ -88,7 +88,6 @@
             if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
                 setMessageType('error');
                 setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
-                setMessage('Firebase is not configured yet. Create js/firebase-config.js before testing sign in.');
                 return;
             }
 
@@ -180,10 +179,10 @@
     };
 
     const App = () => <AuthPage />;
-    ReactDOM.render(<App />, document.getElementById('root'));
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
 </script>
 
 </body>
 
 </html>
-

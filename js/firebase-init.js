@@ -20,11 +20,6 @@
   if (!config) {
     console.warn(
       "Firebase config not found. Open firebase-setup.html or create js/firebase-config.js with your Firebase project values."
-  const config = window.INDUSTRIAL_FIREBASE_CONFIG;
-
-  if (!config) {
-    console.warn(
-      "Firebase config not found. Copy js/firebase-config.example.js to js/firebase-config.js and fill in your Firebase project values."
     );
     return;
   }

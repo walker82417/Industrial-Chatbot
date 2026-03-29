@@ -162,18 +162,6 @@
                                     </button>
                                 </>
                             ) : null}
-                                <button
-                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
-                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
-                                >
-                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
-                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
-                                    </span>
-                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
-                                </button>
-                            ) : null}
-                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
-                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
                         </div>
                     </div>
                 </nav>
@@ -191,8 +179,6 @@
             const [profileData, setProfileData] = React.useState(null);
             const [profileLoading, setProfileLoading] = React.useState(true);
             const [profileError, setProfileError] = React.useState('');
-            const [activeTab, setActiveTab] = React.useState('profile');
-            const [subscription, setSubscription] = React.useState(null);
 
             React.useEffect(() => {
                 lucide.createIcons();
@@ -371,33 +357,6 @@
                                                     </div>
                                                 </div>
                                             )}
-                                            <div className="space-y-6">
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Full Name</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="John Doe" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Email</label>
-                                                    <input type="email" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="john.doe@example.com" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Company</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Acme Industries" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Phone Number</label>
-                                                    <input type="tel" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="+1 (555) 123-4567" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-secondary-on-dark mb-2">Job Title</label>
-                                                    <input type="text" className="w-full border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-900 text-on-dark" defaultValue="Plant Manager" />
-                                                </div>
-                                                <div className="pt-4">
-                                                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
-                                                        Save Changes
-                                                    </button>
-                                                </div>
-                                            </div>
                                         </div>
                                     )}
 
@@ -749,7 +708,8 @@
         };
 
         // Render the app
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
