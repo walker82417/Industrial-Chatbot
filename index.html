@@ -4,20 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Industrial Monitoring Web App</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <!-- Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-init.js"></script>
+
     <!-- Custom Styles -->
     <style>
         /* Custom animations */
@@ -31,7 +35,7 @@
                 transform: translateY(0);
             }
         }
-        
+
         @keyframes pulse {
             0% {
                 transform: scale(1);
@@ -43,7 +47,7 @@
                 transform: scale(1);
             }
         }
-        
+
         @keyframes float {
             0% {
                 transform: translateY(0px);
@@ -55,7 +59,7 @@
                 transform: translateY(0px);
             }
         }
-        
+
         @keyframes glow {
             0% {
                 box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
@@ -67,7 +71,7 @@
                 box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
             }
         }
-        
+
         @keyframes slideInFromLeft {
             0% {
                 opacity: 0;
@@ -78,7 +82,7 @@
                 transform: translateX(0);
             }
         }
-        
+
         @keyframes slideInFromRight {
             0% {
                 opacity: 0;
@@ -89,7 +93,7 @@
                 transform: translateX(0);
             }
         }
-        
+
         @keyframes countUp {
             from {
                 opacity: 0;
@@ -100,51 +104,51 @@
                 transform: scale(1);
             }
         }
-        
+
         .fade-in-slide-up {
             animation: fadeInSlideUp 0.8s ease-out forwards;
         }
-        
+
         .pulse {
             animation: pulse 2s infinite;
         }
-        
+
         .float {
             animation: float 3s ease-in-out infinite;
         }
-        
+
         .glow {
             animation: glow 2s infinite;
         }
-        
+
         .slide-in-left {
             animation: slideInFromLeft 0.6s ease-out forwards;
         }
-        
+
         .slide-in-right {
             animation: slideInFromRight 0.6s ease-out forwards;
         }
-        
+
         .count-up {
             animation: countUp 0.5s ease-out forwards;
         }
-        
+
         /* Hover effects for cards */
         .card-hover {
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        
+
         .card-hover:hover {
             transform: translateY(-10px) scale(1.02);
             box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.6);
         }
-        
+
         /* Navigation highlight animation */
         .nav-link {
             position: relative;
             overflow: hidden;
         }
-        
+
         .nav-link::after {
             content: '';
             position: absolute;
@@ -156,82 +160,82 @@
             border-radius: 3px;
             transition: width 0.4s ease;
         }
-        
+
         .nav-link:hover::after,
         .nav-link.active::after {
             width: 100%;
         }
-        
+
         .nav-link.active::after {
             width: 100%;
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
         }
-        
+
         /* Scroll animations */
         .scroll-animate {
             opacity: 0;
             transform: translateY(30px);
             transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        
+
         .scroll-animate.visible {
             opacity: 1;
             transform: translateY(0);
         }
-        
+
         /* Staggered animations */
         .stagger-1 {
             transition-delay: 0.1s;
         }
-        
+
         .stagger-2 {
             transition-delay: 0.2s;
         }
-        
+
         .stagger-3 {
             transition-delay: 0.3s;
         }
-        
+
         .stagger-4 {
             transition-delay: 0.4s;
         }
-        
+
         /* Dark theme styles - Full Dark Version */
         .brand-dark {
             background-color: #020617;
-            background-image: 
+            background-image:
                 radial-gradient(at 20% 80%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 80% 20%, #0f172a 0px, transparent 50%),
                 radial-gradient(at 40% 40%, #1e3a8a 0px, transparent 50%);
         }
-        
+
         .text-on-dark {
             color: #f1f5f9;
         }
-        
+
         .text-secondary-on-dark {
             color: #cbd5e1;
         }
-        
+
         .card-on-dark {
             background-color: #0f172a;
             border: 1px solid #1e293b;
             backdrop-filter: blur(10px);
         }
-        
+
         .nav-link-dark {
             color: #cbd5e1;
             transition: color 0.3s ease;
         }
-        
+
         .nav-link-dark:hover {
             color: #f1f5f9;
         }
-        
+
         .nav-link-dark.active {
             color: #3b82f6;
         }
-        
+
         /* Animated background particles */
         .particles {
             position: absolute;
@@ -242,7 +246,7 @@
             overflow: hidden;
             z-index: -1;
         }
-        
+
         .particle {
             position: absolute;
             background: rgba(59, 130, 246, 0.3);
@@ -250,7 +254,7 @@
             pointer-events: none;
             animation: float 15s infinite linear;
         }
-        
+
         /* Button animation - updated to remove white shimmer */
         .cta-button {
             position: relative;
@@ -258,18 +262,18 @@
             transition: all 0.3s ease;
             background: linear-gradient(90deg, #3b82f6, #60a5fa);
         }
-        
-   
+
+
         .cta-button:hover::before {
             left: 100%;
         }
-        
+
         /* Footer styles */
         .footer-link {
             position: relative;
             transition: color 0.3s ease;
         }
-        
+
         .footer-link::after {
             content: '';
             position: absolute;
@@ -280,20 +284,20 @@
             background-color: #3b82f6;
             transition: width 0.3s ease;
         }
-        
+
         .footer-link:hover::after {
             width: 100%;
         }
-        
+
         .social-icon {
             transition: all 0.3s ease;
         }
-        
+
         .social-icon:hover {
             transform: translateY(-3px);
             color: #3b82f6;
         }
-        
+
         /* Metric card styles */
         .metric-card {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -302,7 +306,7 @@
             padding: 1.5rem;
             transition: all 0.3s ease;
         }
-        
+
         .metric-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
@@ -322,16 +326,39 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            
+            const [authUser, setAuthUser] = React.useState(null);
+            const [authReady, setAuthReady] = React.useState(false);
+
+            React.useEffect(() => {
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                const storedEmail = localStorage.getItem('userEmail');
+                const fallbackUser = storedEmail
+                    ? { displayName: localStorage.getItem('profileName') || storedEmail.split('@')[0], email: storedEmail }
+                    : null;
+
+                if (!auth) {
+                    setAuthUser(fallbackUser);
+                    setAuthReady(true);
+                    return;
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user || fallbackUser);
+                    setAuthReady(true);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
             // Get current page to highlight active link
             const getCurrentPage = () => {
                 const path = window.location.pathname;
                 const filename = path.substring(path.lastIndexOf('/') + 1);
                 return filename === '' ? 'index.html' : filename;
             };
-            
+
             const currentPage = getCurrentPage();
-            
+
             return (
                 <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md shadow-lg">
                     <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -340,10 +367,10 @@
                                 <i data-lucide="activity" className="w-8 h-8 text-blue-500 mr-2 float"></i>
                                 <span className="text-xl font-bold text-on-dark">Industrial Chatbot</span>
                             </div>
-                            
+
                             <div className="hidden md:flex space-x-8 relative">
                                 {navLinks.map((link, index) => (
-                                    <a 
+                                    <a
                                         key={link.name}
                                         href={link.path}
                                         className={`nav-link nav-link-dark px-1 py-2 ${currentPage === link.path ? 'active' : ''}`}
@@ -354,41 +381,47 @@
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-4 slide-in-right">
-                            <a 
-                                href="login.html"
-                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
-                            >
-                                Sign In
-                            </a>
-                            <a 
-                                href="signup.html"
-                                className="cta-button text-white px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Sign Up
-                            </a>
+                            {!authReady ? (
+                                <div className="w-24 h-9 rounded-lg bg-slate-700/70 animate-pulse"></div>
+                            ) : authUser ? (
+                                <button
+                                    onClick={() => window.location.href = "Settings.html?tab=profile"}
+                                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-100 px-3 py-2 rounded-lg transition-colors border border-slate-600"
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+                                        {(authUser.displayName || authUser.email || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
+                                </button>
+                            ) : (
+                                <>
+                                    <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                                    <a href="signup.html" className="cta-button text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
+                                </>
+                            )}
                         </div>
                     </div>
                 </nav>
             );
         };
-        
+
         // Landing Page Component
         const LandingPage = () => {
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
-                
+
                 // Create animated particles
                 const createParticles = () => {
                     const particlesContainer = document.createElement('div');
                     particlesContainer.className = 'particles';
-                    
+
                     for (let i = 0; i < 20; i++) {
                         const particle = document.createElement('div');
                         particle.className = 'particle';
-                        
+
                         const size = Math.random() * 5 + 2;
                         particle.style.width = `${size}px`;
                         particle.style.height = `${size}px`;
@@ -396,41 +429,41 @@
                         particle.style.top = `${Math.random() * 100}%`;
                         particle.style.animationDuration = `${Math.random() * 10 + 10}s`;
                         particle.style.animationDelay = `${Math.random() * 5}s`;
-                        
+
                         particlesContainer.appendChild(particle);
                     }
-                    
+
                     document.body.appendChild(particlesContainer);
                 };
-                
+
                 createParticles();
-                
+
                 // Setup scroll animations
                 const handleScroll = () => {
                     const elements = document.querySelectorAll('.scroll-animate');
                     elements.forEach(element => {
                         const elementTop = element.getBoundingClientRect().top;
                         const elementVisible = 150;
-                        
+
                         if (elementTop < window.innerHeight - elementVisible) {
                             element.classList.add('visible');
                         }
                     });
                 };
-                
+
                 window.addEventListener('scroll', handleScroll);
                 handleScroll(); // Check on initial load
-                
+
                 // Animate counters
                 const animateCounters = () => {
                     const counters = document.querySelectorAll('.counter');
                     counters.forEach(counter => {
                         const target = counter.getAttribute('data-target');
                         if (target === "Empowered with AI") return; // Skip animation for text
-                        
+
                         const increment = parseFloat(target) / 100;
                         let current = 0;
-                        
+
                         const updateCounter = () => {
                             current += increment;
                             if (current < parseFloat(target)) {
@@ -440,11 +473,11 @@
                                 counter.textContent = target;
                             }
                         };
-                        
+
                         updateCounter();
                     });
                 };
-                
+
                 // Trigger counter animation when metrics section is visible
                 const metricsSection = document.querySelector('#metrics-section');
                 if (metricsSection) {
@@ -456,43 +489,43 @@
                             }
                         });
                     });
-                    
+
                     observer.observe(metricsSection);
                 }
-                
+
                 return () => {
                     window.removeEventListener('scroll', handleScroll);
                 };
             }, []);
-            
+
             const features = [
                 { icon: "activity", title: "Real-time Monitoring", description: "Monitor all your industrial equipment in real-time from anywhere." },
                 { icon: "trending-up", title: "Predictive Analytics", description: "AI-powered predictions to prevent failures before they happen." },
                 { icon: "alert-triangle", title: "Smart Alerts", description: "Get notified about issues instantly with our intelligent alert system." },
                 { icon: "message-square", title: "AI Assistant", description: "Chat with our AI to get insights and recommendations for your machines." }
             ];
-            
+
             const metrics = [
-                { 
-                    value: 99.9, 
-                    label: "Uptime", 
+                {
+                    value: 99.9,
+                    label: "Uptime",
                     subtitle: "Continuous monitoring",
                     icon: "shield-check"
                 },
-                { 
-                    value: "24/7", 
-                    label: "Real-time Data", 
+                {
+                    value: "24/7",
+                    label: "Real-time Data",
                     subtitle: "Always monitoring",
                     icon: "activity"
                 },
-                { 
-                    value: "Empowered with AI", 
-                    label: "Powered Analytics", 
+                {
+                    value: "Empowered with AI",
+                    label: "Powered Analytics",
                     subtitle: "Smart predictions",
                     icon: "brain"
                 }
             ];
-            
+
             return (
                 <div className="min-h-screen">
                     {/* Hero Section */}
@@ -504,7 +537,7 @@
                             <p className="text-xl text-secondary-on-dark max-w-2xl mx-auto mb-10 fade-in-slide-up stagger-1">
                                 Transform your industrial operations with AI-powered monitoring and predictive maintenance.
                             </p>
-                            <a 
+                            <a
                                 href="signup.html"
                                 className="cta-button text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors inline-block fade-in-slide-up stagger-2 pulse"
                             >
@@ -512,7 +545,7 @@
                             </a>
                         </div>
                     </section>
-                    
+
                     {/* Features Section */}
                     <section className="py-16 bg-slate-950">
                         <div className="container mx-auto px-4">
@@ -521,8 +554,8 @@
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                                 {features.map((feature, index) => (
-                                    <div 
-                                        key={index} 
+                                    <div
+                                        key={index}
                                         className={`card-on-dark p-6 rounded-xl shadow-md card-hover scroll-animate stagger-${index + 1}`}
                                     >
                                         <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center mb-4 float">
@@ -535,7 +568,7 @@
                             </div>
                         </div>
                     </section>
-                    
+
                     {/* Metrics Section */}
                     <section id="metrics-section" className="py-16 bg-slate-900">
                         <div className="container mx-auto px-4">
@@ -561,7 +594,7 @@
                             </div>
                         </div>
                     </section>
-                    
+
                     {/* CTA Section */}
                     <section className="py-16 bg-gradient-to-r from-slate-900 to-blue-900 text-white relative overflow-hidden">
                         <div className="container mx-auto px-4 text-center relative z-10">
@@ -571,15 +604,15 @@
                             <p className="text-xl mb-8 max-w-2xl mx-auto scroll-animate stagger-1">
                                 Join thousands of industrial companies using our platform to optimize their operations.
                             </p>
-                            <a 
+                            <a
                                 href="subscription.html"
                                 className="cta-button text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors scroll-animate stagger-2"
                             >
-                                Subcribe Now 
+                                Subcribe Now
                             </a>
                         </div>
                     </section>
-                    
+
                     {/* NEW "Let's Simulate" Section */}
                     <section id="simulate" className="py-16 bg-slate-950">
                         <div className="container mx-auto text-center">
@@ -587,7 +620,7 @@
                             <p className="text-secondary-on-dark mb-8">
                                 Explore machine simulations to understand their performance and behavior in real-world scenarios.
                             </p>
-                            <a href="simloading.html" 
+                            <a href="simloading.html"
                                 className="inline-block px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition">
                                 Go to Simulation
                             </a>
@@ -596,14 +629,14 @@
                 </div>
             );
         };
-        
+
         // Footer Component
         const Footer = () => {
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
             }, []);
-            
+
             const footerLinks = [
                 { name: "Home", path: "index.html" },
                 { name: "Dashboard", path: "dashboard.html" },
@@ -612,14 +645,14 @@
                 { name: "AI Chat", path: "AI Chat.html" },
                 { name: "Settings", path: "Settings.html" }
             ];
-            
+
             const socialLinks = [
                 { name: "Twitter", icon: "twitter", path: "#" },
                 { name: "LinkedIn", icon: "linkedin", path: "#" },
                 { name: "GitHub", icon: "github", path: "#" },
                 { name: "Facebook", icon: "facebook", path: "#" }
             ];
-            
+
             return (
                 <footer className="bg-slate-950 border-t border-slate-900 pt-12 pb-8">
                     <div className="container mx-auto px-4">
@@ -635,7 +668,7 @@
                                 </p>
                                 <div className="flex space-x-4">
                                     {socialLinks.map((social, index) => (
-                                        <a 
+                                        <a
                                             key={index}
                                             href={social.path}
                                             className="text-secondary-on-dark social-icon"
@@ -646,14 +679,14 @@
                                     ))}
                                 </div>
                             </div>
-                            
+
                             {/* Quick Links */}
                             <div>
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Quick Links</h3>
                                 <ul className="space-y-2">
                                     {footerLinks.map((link, index) => (
                                         <li key={index}>
-                                            <a 
+                                            <a
                                                 href={link.path}
                                                 className="text-secondary-on-dark hover:text-on-dark footer-link"
                                             >
@@ -663,7 +696,7 @@
                                     ))}
                                 </ul>
                             </div>
-                            
+
                             {/* Contact Info */}
                             <div>
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Contact Us</h3>
@@ -683,7 +716,7 @@
                                 </ul>
                             </div>
                         </div>
-                        
+
                         {/* Copyright */}
                         <div className="border-t border-slate-900 mt-8 pt-6 text-center">
                             <p className="text-secondary-on-dark">
@@ -694,7 +727,7 @@
                 </footer>
             );
         };
-        
+
         // Main App Component
         const App = () => {
             return (
@@ -705,7 +738,7 @@
                 </div>
             );
         };
-        
+
         // Render the app
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
