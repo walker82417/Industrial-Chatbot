@@ -79,6 +79,16 @@
             timestamp: new Date().toLocaleString(),
             resolved: machine.status === 'normal'
         }));
+        const mockAlerts = [
+            { id: 1, machineId: 3, machineName: "Assembly Line C", type: "critical", message: "Bearing Wear Detected", timestamp: "2023-06-25 08:45", resolved: false },
+            { id: 2, machineId: 1, machineName: "CNC Machine A", type: "warning", message: "Temperature Above Threshold", timestamp: "2023-06-25 09:30", resolved: false },
+            { id: 3, machineId: 5, machineName: "Welding Robot E", type: "warning", message: "Vibration Levels Increasing", timestamp: "2023-06-24 14:20", resolved: false },
+            { id: 4, machineId: 2, machineName: "Hydraulic Press B", type: "info", message: "Scheduled Maintenance Due", timestamp: "2023-06-23 11:15", resolved: true },
+            { id: 5, machineId: 4, machineName: "Packaging Machine D", type: "info", message: "Performance Optimization Available", timestamp: "2023-06-22 16:40", resolved: true },
+            { id: 6, machineId: 1, machineName: "CNC Machine A", type: "critical", message: "Motor Overload Detected", timestamp: "2023-06-21 07:30", resolved: true },
+            { id: 7, machineId: 6, machineName: "Conveyor Belt F", type: "warning", message: "Belt Misalignment", timestamp: "2023-06-20 13:15", resolved: false },
+            { id: 8, machineId: 3, machineName: "Assembly Line C", type: "info", message: "Calibration Required", timestamp: "2023-06-19 10:45", resolved: true }
+        ];
     </script>
     <script type="text/babel">
         // Navigation Bar Component
@@ -153,6 +163,8 @@
                                     <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
                                 </button>
                             ) : null}
+                            <a href="login.html" className="text-secondary-on-dark hover:text-on-dark transition-colors">Sign In</a>
+                            <a href="signup.html" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">Sign Up</a>
                         </div>
                     </div>
                 </nav>

@@ -193,6 +193,18 @@
                                     <span className="hidden md:inline">{authUser.displayName || "Profile"}</span>
                                 </button>
                             ) : null}
+                            <a
+                                href="login.html"
+                                className="text-secondary-on-dark hover:text-on-dark transition-colors"
+                            >
+                                Sign In
+                            </a>
+                            <a
+                                href="signup.html"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                            >
+                                Sign Up
+                            </a>
                         </div>
                     </div>
                 </nav>
@@ -205,6 +217,8 @@
             const [subscriptionInfo, setSubscriptionInfo] = React.useState(null);
             const needsAttention = machines.filter(machine => machine.status !== 'normal');
             const otherMachines = machines.filter(machine => machine.status === 'normal');
+            const needsAttention = mockMachines.filter(machine => machine.status !== 'normal');
+            const otherMachines = mockMachines.filter(machine => machine.status === 'normal');
 
             React.useEffect(() => {
                 // Initialize Lucide icons
@@ -269,6 +283,8 @@
                 setMachines(prev => [...prev, newMachine]);
             };
 
+            }, []);
+
             const getStatusColor = (status) => {
                 switch (status) {
                     case 'critical': return 'bg-red-500';
@@ -314,6 +330,13 @@
                             <p className="text-secondary-on-dark text-sm">
                                 Expiry Date: {subscriptionStatus.expiresOn} • Machine Limit: {Number.isFinite(subscriptionStatus.limit) ? subscriptionStatus.limit : 'Unlimited'}
                             </p>
+                            <button
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+                                onClick={() => window.location.href = "maintenance.html"}
+                            >
+                                <i data-lucide="calendar" className="w-5 h-5 mr-2"></i>
+                                Maintenance Schedules
+                            </button>
                         </div>
 
                         {/* Needs Attention Section */}
@@ -407,4 +430,8 @@
 </body>
 
 </html>
+
+
+
+
 
