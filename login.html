@@ -87,7 +87,7 @@
 
             if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
                 setMessageType('error');
-                setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
+                setMessage('Firebase is not configured yet. Create js/firebase-config.js before testing sign in.');
                 return;
             }
 
@@ -169,9 +169,6 @@
                     <p className="text-secondary-on-dark text-sm mt-6 text-center">
                         Need an account? <a href="signup.html" className="text-blue-400 hover:text-blue-300">Create one</a>
                     </p>
-                    <p className="text-secondary-on-dark text-sm mt-3 text-center">
-                        Need to connect Firebase? <a href="firebase-setup.html" className="text-blue-400 hover:text-blue-300">Open setup page</a>
-                    </p>
                 </div>
             </div>
         );
@@ -184,3 +181,4 @@
 </body>
 
 </html>
+
