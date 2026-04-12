@@ -78,6 +78,7 @@
         };
 
         const [isSubmitting, setIsSubmitting] = React.useState(false);
+        const [isResettingPassword, setIsResettingPassword] = React.useState(false);
         const [message, setMessage] = React.useState('');
         const [messageType, setMessageType] = React.useState('info');
 
@@ -118,6 +119,29 @@
             }
         };
 
+        const handlePasswordReset = async () => {
+            setMessage('');
+
+            if (!window.industrialAuthService || !window.industrialAuthService.isConfigured()) {
+                setMessageType('error');
+                setMessage('Firebase is not connected yet. Open the Firebase Setup page first.');
+                return;
+            }
+
+            setIsResettingPassword(true);
+            try {
+                await window.industrialAuthService.sendPasswordReset(formData.email);
+                setMessageType('success');
+                setMessage('Password reset email sent. Please check your inbox.');
+            } catch (err) {
+                console.error(err);
+                setMessageType('error');
+                setMessage(err.message || 'Unable to send reset email right now.');
+            } finally {
+                setIsResettingPassword(false);
+            }
+        };
+
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 flex items-center justify-center p-4">
                 <div className="card-on-dark rounded-xl shadow-2xl w-full max-w-md p-8">
@@ -147,6 +171,16 @@
                             className="input-on-dark w-full rounded-lg px-4 py-3"
                             required
                         />
+                        <div className="text-right">
+                            <button
+                                type="button"
+                                onClick={handlePasswordReset}
+                                disabled={isResettingPassword || isSubmitting}
+                                className="text-sm text-blue-400 hover:text-blue-300 disabled:text-slate-500 transition-colors"
+                            >
+                                {isResettingPassword ? 'Sending reset email...' : 'Forgot password?'}
+                            </button>
+                        </div>
 
                         {message && (
                             <div className={`rounded-lg px-4 py-3 text-sm ${
@@ -169,6 +203,9 @@
 
                     <p className="text-secondary-on-dark text-sm mt-6 text-center">
                         Need an account? <a href="signup.html" className="text-blue-400 hover:text-blue-300">Create one</a>
+                    </p>
+                    <p className="text-secondary-on-dark text-sm mt-3 text-center">
+                        Forgot credentials? Enter your email above and use <span className="text-blue-300">Forgot password?</span> to reset via Firebase email.
                     </p>
                     <p className="text-secondary-on-dark text-sm mt-3 text-center">
                         Need to connect Firebase? <a href="firebase-setup.html" className="text-blue-400 hover:text-blue-300">Open setup page</a>

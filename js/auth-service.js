@@ -38,5 +38,19 @@ window.industrialAuthService = {
     const { auth } = window.industrialFirebase;
     const credential = await auth.signInWithEmailAndPassword(email, password);
     return credential.user;
+  },
+
+  async sendPasswordReset(email) {
+    if (!this.isConfigured()) {
+      throw new Error("Firebase is not configured yet.");
+    }
+
+    const sanitizedEmail = (email || "").trim();
+    if (!sanitizedEmail) {
+      throw new Error("Please enter your email address first.");
+    }
+
+    const { auth } = window.industrialFirebase;
+    await auth.sendPasswordResetEmail(sanitizedEmail);
   }
 };
