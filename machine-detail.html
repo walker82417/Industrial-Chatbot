@@ -218,6 +218,7 @@
             const [timeLabels, setTimeLabels] = React.useState([]);
 
             React.useEffect(() => {
+                if (!machine) return;
                 // Initialize Lucide icons
                 lucide.createIcons();
 
@@ -504,6 +505,7 @@
                             if (!response.ok) throw new Error('Live data fetch failed');
                             const payload = await response.json();
                             const feeds = Array.isArray(payload.feeds) ? payload.feeds : [];
+                            if (!feeds.length) throw new Error('No live feed rows');
                             const labels = feeds.map((f) => new Date(f.created_at).toLocaleString());
                             const volts = feeds.map((f) => Number(f.field1) || 0);
                             const currents = feeds.map((f) => Number(f.field2) || 0);
@@ -538,6 +540,11 @@
                         } catch (error) {
                             console.error(error);
                             setLiveDataError('Unable to load live graph data.');
+                            setVoltageData([]);
+                            setCurrentData([]);
+                            setPowerData([]);
+                            setVibrationData([]);
+                            setTemperatureData([]);
                         }
                     };
                     fetchMotorSeries();
