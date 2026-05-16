@@ -116,11 +116,9 @@
 <body class="brand-dark min-h-screen">
     <div id="root"></div>
     <script type="text/javascript">
-        // Mock Data
+        // Initial Chat Data
         const mockChatMessages = [
-            { id: 1, sender: "ai", text: "Hello! I'm your Industrial AI Assistant. How can I help you today?", timestamp: "10:00 AM" },
-            { id: 2, sender: "user", text: "What's the status of Assembly Line C?", timestamp: "10:02 AM" },
-            { id: 3, sender: "ai", text: "Assembly Line C is currently showing critical status due to bearing wear detected. I recommend immediate maintenance to prevent downtime.", timestamp: "10:03 AM" }
+            { id: 1, sender: "ai", text: "Hello! Ask me about motor health, faults, warning reasons, or what action to take.", timestamp: "10:00 AM" }
         ];
         const expertTopics = [
             "Machine Diagnostics",
@@ -318,6 +316,87 @@
             const [isTyping, setIsTyping] = React.useState(false);
             const chatContainerRef = React.useRef(null);
 
+            const detectIntent = (question) => {
+                const q = question.toLowerCase();
+                if (/(healthy|health|safe|status|normal)/.test(q)) return 'health_status';
+                if (/(fault|problem|issue|failure|abnormal)/.test(q)) return 'fault_detection';
+                if (/(why|reason|cause|increasing|increase)/.test(q)) return 'reason_analysis';
+                if (/(should|recommend|action|do now|stop|maintenance)/.test(q)) return 'recommendation';
+                return 'general';
+            };
+
+            const classifyPrediction = (voltage, current, power, vibration, temperature) => {
+                let score = 0;
+                if (temperature >= 80) score += 2;
+                else if (temperature >= 70) score += 1;
+                if (vibration >= 5) score += 2;
+                else if (vibration >= 3) score += 1;
+                if (current >= 25 || power >= 3500) score += 1;
+                if (voltage <= 180 || voltage >= 260) score += 1;
+
+                if (score >= 4) return 2; // Failure
+                if (score >= 2) return 1; // Warning
+                return 0; // Normal
+            };
+
+            const classifyFault = (vibration, temperature) => {
+                if (vibration >= 4 || temperature >= 78) return 1; // Bearing fault
+                return 0; // Healthy
+            };
+
+            const generateResponse = ({ intent, prediction, fault, data, generatedAt }) => {
+                const predictionText = prediction === 2 ? 'Failure' : prediction === 1 ? 'Warning' : 'Normal';
+                const faultText = fault === 1 ? 'Bearing Fault' : 'Healthy';
+
+                const contextLine = `Live analysis → Prediction: ${predictionText}, Fault: ${faultText}, Voltage: ${data.voltage} V, Current: ${data.current} A, Power: ${data.power} W, Vibration: ${data.vibration}, Temperature: ${data.temperature} °F, Timestamp: ${generatedAt}.`;
+
+                if (intent === 'health_status') {
+                    if (prediction === 0) return `✅ Motor appears healthy and operating in normal range.\n${contextLine}`;
+                    if (prediction === 1) return `⚠️ Motor is in warning condition. Preventive checks are recommended.\n${contextLine}`;
+                    return `🚨 Motor health is critical. Immediate intervention is advised.\n${contextLine}`;
+                }
+
+                if (intent === 'fault_detection') {
+                    if (fault === 1) return `⚠️ Fault detected: probable bearing-related issue.\n${contextLine}`;
+                    return `✅ No major fault signature detected at the moment.\n${contextLine}`;
+                }
+
+                if (intent === 'reason_analysis') {
+                    if (data.temperature >= 78 && data.vibration >= 4) return `Temperature rise is likely linked to mechanical friction/bearing degradation.\n${contextLine}`;
+                    if (data.temperature >= 78) return `Temperature is elevated; check cooling, lubrication, and load conditions.\n${contextLine}`;
+                    if (data.vibration >= 4) return `Higher vibration indicates possible imbalance/misalignment or bearing wear.\n${contextLine}`;
+                    return `No dominant abnormal driver found in the latest sample; continue monitoring trend.\n${contextLine}`;
+                }
+
+                if (intent === 'recommendation') {
+                    if (prediction === 2) return `🛑 Recommendation: stop machine safely, inspect bearing and alignment, and run maintenance before restart.\n${contextLine}`;
+                    if (prediction === 1) return `🧰 Recommendation: schedule preventive maintenance and inspect bearing/lubrication soon.\n${contextLine}`;
+                    return `✅ Recommendation: continue operation and monitor periodically.\n${contextLine}`;
+                }
+
+                return `I can help with health status, fault detection, reason analysis, and recommendations.\n${contextLine}`;
+            };
+
+            const runRealtimeAnalysis = async (question) => {
+                const response = await fetch('https://api.thingspeak.com/channels/3340934/feeds/last.json?api_key=582TFZMMRBY94Z5S');
+                if (!response.ok) throw new Error('Unable to fetch live motor data');
+                const feed = await response.json();
+
+                const data = {
+                    voltage: Number(feed.field1) || 0,
+                    current: Number(feed.field2) || 0,
+                    power: Number(feed.field3) || 0,
+                    vibration: Number(feed.field4) || 0,
+                    temperature: Number(feed.field5) || 0
+                };
+
+                const intent = detectIntent(question);
+                const prediction = classifyPrediction(data.voltage, data.current, data.power, data.vibration, data.temperature);
+                const fault = classifyFault(data.vibration, data.temperature);
+                const generatedAt = feed.created_at ? new Date(feed.created_at).toLocaleString() : new Date().toLocaleString();
+                return generateResponse({ intent, prediction, fault, data, generatedAt });
+            };
+
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
@@ -342,17 +421,28 @@
                 setMessage('');
                 setIsTyping(true);
 
-                // Simulate AI response after a delay
-                setTimeout(() => {
-                    const aiResponse = {
-                        id: messages.length + 2,
-                        sender: 'ai',
-                        text: "I'm analyzing your request. This is a simulated response from the AI assistant.",
-                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    };
-                    setMessages(prev => [...prev, aiResponse]);
-                    setIsTyping(false);
-                }, 1500);
+                (async () => {
+                    try {
+                        const responseText = await runRealtimeAnalysis(newMessage.text);
+                        const aiResponse = {
+                            id: Date.now(),
+                            sender: 'ai',
+                            text: responseText,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        };
+                        setMessages(prev => [...prev, aiResponse]);
+                    } catch (error) {
+                        const aiResponse = {
+                            id: Date.now(),
+                            sender: 'ai',
+                            text: `I couldn't complete live analysis right now. Please retry in a few seconds. (${error.message})`,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        };
+                        setMessages(prev => [...prev, aiResponse]);
+                    } finally {
+                        setIsTyping(false);
+                    }
+                })();
             };
 
             const handleKeyPress = (e) => {
