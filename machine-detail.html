@@ -210,7 +210,10 @@
             const [temperatureData, setTemperatureData] = React.useState([]);
             const [vibrationData, setVibrationData] = React.useState([]);
             const [speedData, setSpeedData] = React.useState([]);
+            const [voltageData, setVoltageData] = React.useState([]);
+            const [powerData, setPowerData] = React.useState([]);
             const [currentData, setCurrentData] = React.useState([]);
+            const [thingSpeakError, setThingSpeakError] = React.useState('');
             const [timeLabels, setTimeLabels] = React.useState([]);
 
             React.useEffect(() => {
@@ -218,7 +221,7 @@
                 lucide.createIcons();
 
                 // Initialize charts
-                let tempChart, vibChart, speedChart, currentChart;
+                let tempChart, vibChart, speedChart, currentChart, voltageChart;
 
                 const initCharts = () => {
                     // Generate initial data
@@ -378,7 +381,7 @@
                     });
 
                     // Speed Chart
-                    const speedCtx = document.getElementById('speedChart').getContext('2d');
+                    const speedCtx = document.getElementById('powerChart').getContext('2d');
                     speedChart = new Chart(speedCtx, {
                         type: 'line',
                         data: {
@@ -481,10 +484,71 @@
                         }
                     });
 
-                    return { tempChart, vibChart, speedChart, currentChart };
+                    // Voltage Chart
+                    const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+                    voltageChart = new Chart(voltageCtx, {
+                        type: 'line',
+                        data: { labels: labels, datasets: [{ label: 'Voltage (V)', data: tempValues, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0, pointHoverRadius: 0 }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } } } }
+                    });
+
+                    return { tempChart, vibChart, speedChart, currentChart, voltageChart };
                 };
 
                 const charts = initCharts();
+                if (machine.type === 'motor') {
+                    const fetchMotorSeries = async () => {
+                        try {
+                            const response = await fetch('https://api.thingspeak.com/channels/3340934/feeds.json?api_key=582TFZMMRBY94Z5S&results=60');
+                            if (!response.ok) throw new Error('ThingSpeak fetch failed');
+                            const payload = await response.json();
+                            const feeds = Array.isArray(payload.feeds) ? payload.feeds : [];
+                            const labels = feeds.map((f) => new Date(f.created_at).toLocaleTimeString());
+                            const volts = feeds.map((f) => Number(f.field1) || 0);
+                            const currents = feeds.map((f) => Number(f.field2) || 0);
+                            const powers = feeds.map((f) => Number(f.field3) || 0);
+                            const vibrations = feeds.map((f) => Number(f.field4) || 0);
+                            const temperatures = feeds.map((f) => Number(f.field5) || 0);
+
+                            setTimeLabels(labels);
+                            setVoltageData(volts);
+                            setCurrentData(currents);
+                            setPowerData(powers);
+                            setVibrationData(vibrations);
+                            setTemperatureData(temperatures);
+                            setThingSpeakError('');
+
+                            charts.tempChart.data.labels = labels;
+                            charts.tempChart.data.datasets[0].data = temperatures;
+                            charts.tempChart.update();
+                            charts.vibChart.data.labels = labels;
+                            charts.vibChart.data.datasets[0].data = vibrations;
+                            charts.vibChart.update();
+                            charts.currentChart.data.labels = labels;
+                            charts.currentChart.data.datasets[0].data = currents;
+                            charts.currentChart.update();
+                            charts.voltageChart.data.labels = labels;
+                            charts.voltageChart.data.datasets[0].data = volts;
+                            charts.voltageChart.update();
+                            charts.speedChart.data.labels = labels;
+                            charts.speedChart.data.datasets[0].data = powers;
+                            charts.speedChart.update();
+                        } catch (error) {
+                            console.error(error);
+                            setThingSpeakError('Unable to load ThingSpeak graph data.');
+                        }
+                    };
+                    fetchMotorSeries();
+                    const tsInterval = setInterval(fetchMotorSeries, 15000);
+                    return () => {
+                        clearInterval(tsInterval);
+                        if (charts.tempChart) charts.tempChart.destroy();
+                        if (charts.vibChart) charts.vibChart.destroy();
+                        if (charts.speedChart) charts.speedChart.destroy();
+                        if (charts.currentChart) charts.currentChart.destroy();
+                        if (charts.voltageChart) charts.voltageChart.destroy();
+                    };
+                }
 
                 // Update charts every second
                 const interval = setInterval(() => {
@@ -561,6 +625,7 @@
                     if (charts.vibChart) charts.vibChart.destroy();
                     if (charts.speedChart) charts.speedChart.destroy();
                     if (charts.currentChart) charts.currentChart.destroy();
+                    if (charts.voltageChart) charts.voltageChart.destroy();
                 };
             }, [machineId]);
 
@@ -600,9 +665,9 @@
 
             const handleExportCsv = () => {
                 if (!timeLabels.length) return;
-                let csv = 'Date Time,Temperature (°F),Vibration (mm/s),Speed (RPM),Current (A)\n';
+                let csv = 'Date Time,Voltage (V),Current (A),Power (W),Vibration (mm/s),Temperature (°F)\n';
                 for (let i = 0; i < timeLabels.length; i++) {
-                    csv += `${timeLabels[i]},${temperatureData[i]?.toFixed(2) || ''},${vibrationData[i]?.toFixed(2) || ''},${speedData[i]?.toFixed(2) || ''},${currentData[i]?.toFixed(2) || ''}\n`;
+                    csv += `${timeLabels[i]},${voltageData[i] ?? ''},${currentData[i] ?? ''},${powerData[i] ?? ''},${vibrationData[i] ?? ''},${temperatureData[i] ?? ''}\n`;
                 }
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -646,7 +711,21 @@
                                 </button>
                             </div>
                         </div>
+                        {thingSpeakError && machine.type === 'motor' && (
+                            <div className="mb-4 text-red-400">{thingSpeakError}</div>
+                        )}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                                <h3 className="text-lg font-semibold text-on-dark mb-4">Voltage</h3>
+                                <div className="chart-container">
+                                    <canvas id="voltageChart"></canvas>
+                                </div>
+                                <div className="mt-4 text-center">
+                                    <span className="text-2xl font-bold text-on-dark">
+                                        {voltageData.length > 0 ? Number(voltageData[voltageData.length - 1]).toFixed(1) : 'Loading...'} V
+                                    </span>
+                                </div>
+                            </div>
                             <div className="card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Temperature</h3>
                                 <div className="chart-container">
@@ -670,13 +749,13 @@
                                 </div>
                             </div>
                             <div className="card-on-dark rounded-xl shadow-md p-6">
-                                <h3 className="text-lg font-semibold text-on-dark mb-4">Speed</h3>
+                                <h3 className="text-lg font-semibold text-on-dark mb-4">Power</h3>
                                 <div className="chart-container">
-                                    <canvas id="speedChart"></canvas>
+                                    <canvas id="powerChart"></canvas>
                                 </div>
                                 <div className="mt-4 text-center">
                                     <span className="text-2xl font-bold text-on-dark">
-                                        {speedData.length > 0 ? speedData[speedData.length - 1].toFixed(0) : 'Loading...'} RPM
+                                        {powerData.length > 0 ? Number(powerData[powerData.length - 1]).toFixed(1) : 'Loading...'} W
                                     </span>
                                 </div>
                             </div>
