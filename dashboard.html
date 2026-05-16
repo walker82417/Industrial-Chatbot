@@ -22,6 +22,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom Styles -->
     <style>
@@ -227,6 +228,8 @@
         const Dashboard = () => {
             const [machines, setMachines] = React.useState(mockMachines);
             const [subscriptionInfo, setSubscriptionInfo] = React.useState(null);
+            const [motorHistory, setMotorHistory] = React.useState([]);
+            const [motorLiveError, setMotorLiveError] = React.useState('');
             const needsAttention = machines.filter(machine => machine.status !== 'normal');
             const otherMachines = machines.filter(machine => machine.status === 'normal');
 
@@ -241,7 +244,57 @@
                         console.error('Failed to parse subscription:', error);
                     }
                 }
+
+                const fetchMotorHistory = async () => {
+                    try {
+                        const response = await fetch('https://api.thingspeak.com/channels/3340934/feeds.json?api_key=582TFZMMRBY94Z5S&results=20');
+                        if (!response.ok) throw new Error('Unable to fetch motor history');
+                        const payload = await response.json();
+                        const feeds = Array.isArray(payload.feeds) ? payload.feeds : [];
+                        setMotorHistory(feeds);
+                        setMotorLiveError('');
+                    } catch (error) {
+                        console.error(error);
+                        setMotorLiveError('Unable to load induction motor graph data right now.');
+                    }
+                };
+
+                fetchMotorHistory();
+                const refreshInterval = setInterval(fetchMotorHistory, 15000);
+
+                return () => clearInterval(refreshInterval);
             }, []);
+
+            React.useEffect(() => {
+                if (!motorHistory.length) return;
+                const canvas = document.getElementById('inductionMotorChart');
+                if (!canvas) return;
+
+                const chart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: motorHistory.map((feed) => new Date(feed.created_at).toLocaleTimeString()),
+                        datasets: [
+                            { label: 'Voltage', data: motorHistory.map((f) => Number(f.field1)), borderColor: '#22c55e', tension: 0.3 },
+                            { label: 'Current', data: motorHistory.map((f) => Number(f.field2)), borderColor: '#3b82f6', tension: 0.3 },
+                            { label: 'Power', data: motorHistory.map((f) => Number(f.field3)), borderColor: '#f59e0b', tension: 0.3 },
+                            { label: 'Vibration', data: motorHistory.map((f) => Number(f.field4)), borderColor: '#ef4444', tension: 0.3 },
+                            { label: 'Temperature', data: motorHistory.map((f) => Number(f.field5)), borderColor: '#a855f7', tension: 0.3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                        scales: {
+                            x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }
+                        }
+                    }
+                });
+
+                return () => chart.destroy();
+            }, [motorHistory]);
 
             const getPlanLimit = (plan) => {
                 if (plan === 'basic') return 5;
@@ -338,6 +391,17 @@
                             <p className="text-secondary-on-dark text-sm">
                                 Expiry Date: {subscriptionStatus.expiresOn} • Machine Limit: {Number.isFinite(subscriptionStatus.limit) ? subscriptionStatus.limit : 'Unlimited'}
                             </p>
+                        </div>
+
+                        <div className="card-on-dark rounded-xl p-6 mb-8 border border-slate-700">
+                            <h2 className="text-xl font-semibold text-on-dark mb-4">Induction Motor ThingSpeak Trend Graph</h2>
+                            {motorLiveError ? (
+                                <p className="text-red-400">{motorLiveError}</p>
+                            ) : (
+                                <div className="h-80">
+                                    <canvas id="inductionMotorChart"></canvas>
+                                </div>
+                            )}
                         </div>
 
                         {/* Needs Attention Section */}
