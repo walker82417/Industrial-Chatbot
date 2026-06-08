@@ -245,24 +245,77 @@
             const [isLoading, setIsLoading] = React.useState(true);
 
             React.useEffect(() => {
-                // Check subscription status
-                const savedSubscription = localStorage.getItem('subscription');
-                if (savedSubscription) {
-                    try {
-                        const subscription = JSON.parse(savedSubscription);
-                        const now = new Date();
-                        const subDate = new Date(subscription.timestamp);
-                        const daysSinceSub = Math.floor((now - subDate) / (1000 * 60 * 60 * 24));
+                const isSubscriptionActive = (subscription) => {
+                    if (!subscription) return false;
+                    const activeUserId = localStorage.getItem('userId');
+                    const activeEmail = localStorage.getItem('userEmail');
+                    const belongsToCurrentUser = (!subscription.userId || subscription.userId === activeUserId)
+                        && (!subscription.userEmail || subscription.userEmail === activeEmail);
+                    const startDate = new Date(subscription.startDate || subscription.timestamp);
+                    const expiryDate = subscription.expiresAt
+                        ? new Date(subscription.expiresAt)
+                        : new Date(startDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+                    return belongsToCurrentUser && Number.isFinite(startDate.getTime()) && new Date() <= expiryDate;
+                };
 
-                        setHasSubscription(daysSinceSub <= 30);
-                    } catch (e) {
-                        console.error('Error parsing subscription data:', e);
-                        setHasSubscription(false);
+                const loadSubscriptionStatus = async () => {
+                    const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                    const database = window.industrialFirebase && window.industrialFirebase.database;
+                    const localSubscription = localStorage.getItem('subscription');
+
+                    if (localSubscription) {
+                        try {
+                            const parsedSubscription = JSON.parse(localSubscription);
+                            if (isSubscriptionActive(parsedSubscription)) {
+                                setHasSubscription(true);
+                                setIsLoading(false);
+                                return;
+                            }
+                        } catch (e) {
+                            console.error('Error parsing subscription data:', e);
+                        }
                     }
-                } else {
-                    setHasSubscription(false);
-                }
-                setIsLoading(false);
+
+                    if (!auth || !database) {
+                        setHasSubscription(false);
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+                        if (!user) {
+                            setHasSubscription(false);
+                            setIsLoading(false);
+                            return;
+                        }
+
+                        try {
+                            const snapshot = await database.ref(`users/${user.uid}/subscription`).once('value');
+                            const remoteSubscription = snapshot.val();
+                            const active = isSubscriptionActive(remoteSubscription);
+                            if (active) {
+                                localStorage.setItem('subscription', JSON.stringify(remoteSubscription));
+                            }
+                            setHasSubscription(active);
+                        } catch (error) {
+                            console.error('Failed to load saved subscription:', error);
+                            setHasSubscription(false);
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    });
+
+                    return () => unsubscribe();
+                };
+
+                let cleanup;
+                loadSubscriptionStatus().then((unsubscribe) => {
+                    cleanup = unsubscribe;
+                });
+
+                return () => {
+                    if (cleanup) cleanup();
+                };
             }, []);
 
             if (isLoading) {
@@ -325,30 +378,76 @@
                 return 'general';
             };
 
-            const classifyPrediction = (voltage, current, power, vibration, temperature) => {
-                let score = 0;
-                if (temperature >= 80) score += 2;
-                else if (temperature >= 70) score += 1;
-                if (vibration >= 5) score += 2;
-                else if (vibration >= 3) score += 1;
-                if (current >= 25 || power >= 3500) score += 1;
-                if (voltage <= 180 || voltage >= 260) score += 1;
+            const AI_MODEL_ENDPOINT_KEY = 'industrialAiModelEndpoint';
 
-                if (score >= 4) return 2; // Failure
-                if (score >= 2) return 1; // Warning
-                return 0; // Normal
+            const predictionLabels = ['Normal', 'Warning', 'Failure'];
+            const faultLabels = ['Healthy', 'Bearing Fault'];
+
+            const fallbackPrediction = (data) => {
+                const rules = [
+                    data.temperature >= 80 ? 2 : data.temperature >= 70 ? 1 : 0,
+                    data.vibration >= 5 ? 2 : data.vibration >= 3 ? 1 : 0,
+                    data.current >= 25 || data.power >= 3500 ? 1 : 0,
+                    data.voltage <= 180 || data.voltage >= 260 ? 1 : 0
+                ];
+                const score = rules.reduce((sum, value) => sum + value, 0);
+                const prediction = score >= 4 ? 2 : score >= 2 ? 1 : 0;
+                const fault = data.vibration >= 4 || data.temperature >= 78 ? 1 : 0;
+                return {
+                    prediction,
+                    fault,
+                    predictionText: predictionLabels[prediction],
+                    faultText: faultLabels[fault],
+                    confidence: prediction === 0 ? 0.82 : 0.74,
+                    source: 'Local safety fallback'
+                };
             };
 
-            const classifyFault = (vibration, temperature) => {
-                if (vibration >= 4 || temperature >= 78) return 1; // Bearing fault
-                return 0; // Healthy
+            const normalizeModelResult = (result, data) => {
+                const fallback = fallbackPrediction(data);
+                const rawPrediction = result.prediction ?? result.prediction_class ?? result.status_code ?? result.status;
+                const rawFault = result.fault_class ?? result.fault ?? result.fault_code;
+                const prediction = Number.isFinite(Number(rawPrediction))
+                    ? Number(rawPrediction)
+                    : predictionLabels.findIndex((label) => label.toLowerCase() === String(rawPrediction || '').toLowerCase());
+                const fault = Number.isFinite(Number(rawFault))
+                    ? Number(rawFault)
+                    : faultLabels.findIndex((label) => label.toLowerCase() === String(rawFault || '').toLowerCase());
+
+                return {
+                    prediction: prediction >= 0 ? prediction : fallback.prediction,
+                    fault: fault >= 0 ? fault : fallback.fault,
+                    predictionText: result.label || result.prediction_label || predictionLabels[prediction] || fallback.predictionText,
+                    faultText: result.fault_label || faultLabels[fault] || fallback.faultText,
+                    confidence: Number(result.confidence ?? result.probability ?? fallback.confidence),
+                    source: 'External fault model'
+                };
             };
 
-            const generateResponse = ({ intent, prediction, fault, data, generatedAt }) => {
-                const predictionText = prediction === 2 ? 'Failure' : prediction === 1 ? 'Warning' : 'Normal';
-                const faultText = fault === 1 ? 'Bearing Fault' : 'Healthy';
+            const runFaultModel = async (data) => {
+                const endpoint = localStorage.getItem(AI_MODEL_ENDPOINT_KEY);
+                if (!endpoint) return fallbackPrediction(data);
 
-                const contextLine = `Live analysis → Prediction: ${predictionText}, Fault: ${faultText}, Voltage: ${data.voltage} V, Current: ${data.current} A, Power: ${data.power} W, Vibration: ${data.vibration}, Temperature: ${data.temperature} °F, Timestamp: ${generatedAt}.`;
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    if (!response.ok) throw new Error('External fault model is not reachable');
+                    return normalizeModelResult(await response.json(), data);
+                } catch (error) {
+                    console.error('External fault model failed, using local fallback:', error);
+                    return { ...fallbackPrediction(data), source: 'Local safety fallback (external model unavailable)' };
+                }
+            };
+
+            const generateResponse = ({ intent, modelResult, data, generatedAt }) => {
+                const { prediction, fault, predictionText, faultText, confidence, source } = modelResult;
+                const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : 'N/A';
+
+                const contextLine = `Live analysis → Prediction: ${predictionText}, Fault: ${faultText}, Confidence: ${confidenceText}, Source: ${source}, Voltage: ${data.voltage} V, Current: ${data.current} A, Power: ${data.power} W, Vibration: ${data.vibration}, Temperature: ${data.temperature} °F, Timestamp: ${generatedAt}.`;
 
                 if (intent === 'health_status') {
                     if (prediction === 0) return `✅ Motor appears healthy and operating in normal range.\n${contextLine}`;
@@ -391,10 +490,9 @@
                 };
 
                 const intent = detectIntent(question);
-                const prediction = classifyPrediction(data.voltage, data.current, data.power, data.vibration, data.temperature);
-                const fault = classifyFault(data.vibration, data.temperature);
+                const modelResult = await runFaultModel(data);
                 const generatedAt = feed.created_at ? new Date(feed.created_at).toLocaleString() : new Date().toLocaleString();
-                return generateResponse({ intent, prediction, fault, data, generatedAt });
+                return generateResponse({ intent, modelResult, data, generatedAt });
             };
 
             React.useEffect(() => {
