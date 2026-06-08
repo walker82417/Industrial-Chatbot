@@ -19,6 +19,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-database-compat.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
@@ -77,93 +78,134 @@
             color: #3b82f6;
         }
 
-        /* Typing indicator */
-        .typing-indicator {
-            display: inline-flex;
-            align-items: center;
+        /* Thinking indicator */
+        .thinking-card {
+            overflow: hidden;
+            position: relative;
+            isolation: isolate;
+            background:
+                linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94)),
+                radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.28), transparent 30%);
         }
 
-        .typing-indicator span {
-            height: 8px;
-            width: 8px;
-            background-color: #3b82f6;
-            border-radius: 50%;
-            display: inline-block;
-            margin: 0 2px;
-            animation: typing 1.4s infinite;
+        .thinking-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, transparent 0%, rgba(96, 165, 250, 0.16) 45%, transparent 70%);
+            transform: translateX(-100%);
+            animation: thinkingSweep 1.9s ease-in-out infinite;
+            z-index: -1;
         }
 
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
+        .thinking-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            border: 1px solid rgba(96, 165, 250, 0.32);
+            box-shadow: inset 0 0 28px rgba(37, 99, 235, 0.16);
+            pointer-events: none;
         }
-
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-                opacity: 0.7;
-            }
-            30% {
-                transform: translateY(-10px);
-                opacity: 1;
-            }
-        }
-
 
         .bot-avatar-thinking {
             position: relative;
+            overflow: hidden;
             animation: botPulse 1.8s ease-in-out infinite;
+        }
+
+        .bot-avatar-thinking::before {
+            content: '';
+            position: absolute;
+            inset: 5px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(147, 197, 253, 0.95) 0 18%, transparent 21% 100%);
+            animation: botCore 1.2s ease-in-out infinite;
         }
 
         .bot-avatar-thinking::after {
             content: '';
             position: absolute;
             inset: -6px;
-            border: 1px solid rgba(59, 130, 246, 0.55);
+            border: 1px solid rgba(96, 165, 250, 0.6);
             border-radius: 9999px;
             animation: botRing 1.8s ease-out infinite;
         }
 
-        .response-card-thinking {
-            overflow: hidden;
-            position: relative;
+        .typing-indicator {
+            display: inline-flex;
+            align-items: end;
+            gap: 4px;
+            height: 18px;
         }
 
-        .response-card-thinking::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -40%;
-            width: 40%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #60a5fa, transparent);
-            animation: thinkingSweep 1.6s ease-in-out infinite;
+        .typing-indicator span {
+            width: 4px;
+            height: 8px;
+            border-radius: 9999px;
+            display: inline-block;
+            background: linear-gradient(180deg, #bfdbfe, #2563eb);
+            animation: typingBars 0.9s ease-in-out infinite;
         }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.12s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.24s; }
+        .typing-indicator span:nth-child(4) { animation-delay: 0.36s; }
 
         .thinking-copy {
-            animation: softBlink 1.8s ease-in-out infinite;
+            animation: softBlink 1.6s ease-in-out infinite;
+        }
+
+        .thinking-progress {
+            position: relative;
+            height: 3px;
+            overflow: hidden;
+            border-radius: 9999px;
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .thinking-progress span {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 42%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #38bdf8, #3b82f6, #a78bfa);
+            animation: progressGlide 1.35s ease-in-out infinite;
+        }
+
+        @keyframes typingBars {
+            0%, 100% { height: 6px; opacity: 0.55; transform: translateY(0); }
+            50% { height: 18px; opacity: 1; transform: translateY(-1px); }
         }
 
         @keyframes botPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.25); transform: scale(1); }
-            50% { box-shadow: 0 0 24px 2px rgba(59, 130, 246, 0.35); transform: scale(1.04); }
+            50% { box-shadow: 0 0 24px 2px rgba(59, 130, 246, 0.38); transform: scale(1.05); }
+        }
+
+        @keyframes botCore {
+            0%, 100% { opacity: 0.55; transform: scale(0.82); }
+            50% { opacity: 1; transform: scale(1.05); }
         }
 
         @keyframes botRing {
             0% { opacity: 0.9; transform: scale(0.88); }
-            100% { opacity: 0; transform: scale(1.35); }
+            100% { opacity: 0; transform: scale(1.36); }
         }
 
         @keyframes thinkingSweep {
-            0% { left: -40%; }
-            100% { left: 110%; }
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        @keyframes progressGlide {
+            0% { transform: translateX(-110%); }
+            55% { transform: translateX(82%); }
+            100% { transform: translateX(240%); }
         }
 
         @keyframes softBlink {
-            0%, 100% { opacity: 0.65; }
+            0%, 100% { opacity: 0.68; }
             50% { opacity: 1; }
         }
     </style>
@@ -714,74 +756,48 @@
                 const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : 'N/A';
                 const statusText = getStatusText(prediction);
                 const loadText = getLoadStatus(data);
-                const reasons = getMainReasons(data, modelResult);
-                const reasonText = reasons.join('; ');
+                const reasonText = getMainReasons(data, modelResult).join('; ');
                 const maintenancePlan = getMaintenancePlan(prediction, fault, data);
                 const maintenanceSchedule = getMaintenanceSchedule(prediction, fault, data);
                 const dataLine = buildDataLine(data, generatedAt, confidenceText, source);
-                const greeting = profile.isGreeting ? 'Hi! ' : '';
-                const followUpLine = profile.isFollowUp ? 'Following up on your last question: ' : '';
                 const metricLine = getMetricInsight(profile.metricFocus, data);
-                const metricPrefix = metricLine ? `${metricLine}\n` : '';
+
+                if (profile.isGreeting) {
+                    return 'Hi! Ask me about status, fault, reason, maintenance, or report.';
+                }
 
                 if (profile.action === 'report' || profile.intent === 'report') {
-                    return `${greeting}${followUpLine}Motor Health Report
+                    return `Motor Health Report
 Status: ${statusText}
 Load: ${loadText}
 Fault: ${fault === 1 ? faultText : 'No major fault'}
 Next maintenance: ${maintenanceSchedule}
 Reason: ${reasonText}.
-${metricPrefix}Action: ${maintenancePlan}
+Action: ${maintenancePlan}
 ${dataLine}`;
+                }
+
+                if (profile.metricFocus && profile.intent !== 'recommendation') {
+                    return metricLine || `${profile.metricFocus}: live value unavailable.`;
                 }
 
                 if (profile.intent === 'fault_detection') {
-                    if (fault === 1 || prediction > 0) {
-                        return `${greeting}${followUpLine}Fault check: ${fault === 1 ? faultText : predictionText} risk is present.
-Reason: ${reasonText}.
-${metricPrefix}Action: ${maintenancePlan}
-${dataLine}`;
-                    }
-
-                    return `${greeting}${followUpLine}Fault check: no major fault detected right now.
-Reason: ${reasonText}.
-${metricPrefix}Action: continue normal monitoring.
-${dataLine}`;
+                    return fault === 1 || prediction > 0
+                        ? `Fault: ${fault === 1 ? faultText : predictionText} risk detected.`
+                        : 'Fault: no major fault detected.';
                 }
 
                 if (profile.intent === 'reason_analysis') {
-                    return `${greeting}${followUpLine}Reason: ${reasonText}.
-Status: ${statusText}. Load: ${loadText}. Fault: ${fault === 1 ? faultText : 'No major fault'}.
-${metricPrefix}Action: ${maintenancePlan}
-${dataLine}`;
+                    return `Reason: ${reasonText}.`;
                 }
-                if (prediction === 1 || fault === 1 || data.temperature >= 70 || data.vibration >= 3) {
-                    return 'Schedule preventive maintenance soon; check bearing condition, lubrication, mounting bolts, cooling, and load balance.';
-                }
-                return 'No urgent maintenance is needed. Keep normal monitoring and do the next routine service as planned.';
-            };
 
                 if (profile.intent === 'recommendation') {
-                    if (profile.needsMaintenanceTiming) {
-                        return `${greeting}${followUpLine}Next maintenance: ${maintenanceSchedule}
-Why: ${reasonText}.
-${metricPrefix}Current status: ${statusText}; ${loadText}; fault result is ${fault === 1 ? faultText : 'clear'}.
-What to do: ${maintenancePlan}
-${dataLine}`;
-                    }
-
-                    return `${greeting}${followUpLine}Maintenance action: ${maintenancePlan}
-Next maintenance: ${maintenanceSchedule}
-Why: ${reasonText}.
-${metricPrefix}Current status: ${statusText}; ${loadText}; fault result is ${fault === 1 ? faultText : 'clear'}.
-${dataLine}`;
+                    return profile.needsMaintenanceTiming
+                        ? `Next maintenance: ${maintenanceSchedule}`
+                        : `Maintenance action: ${maintenancePlan}`;
                 }
 
-                return `${greeting}${followUpLine}Motor status: ${statusText}.
-Load: ${loadText}. Fault: ${fault === 1 ? faultText : 'No major fault'}.
-Reason: ${reasonText}.
-${metricPrefix}Action: ${maintenancePlan}
-${dataLine}`;
+                return `Motor status: ${statusText}.`;
             };
 
             const runRealtimeAnalysis = async (question, requestedAction = null, previousContext = null) => {
@@ -984,16 +1000,21 @@ ${dataLine}`;
 
                                     {isTyping && (
                                         <div className="mb-4 chat-message">
-                                            <div className="inline-block card-on-dark response-card-thinking border border-blue-800/70 px-4 py-3 rounded-lg shadow-lg">
+                                            <div className="inline-block thinking-card border border-blue-800/70 px-4 py-3 rounded-xl shadow-2xl min-w-64">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="typing-indicator">
-                                                        <span></span>
-                                                        <span></span>
-                                                        <span></span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-on-dark thinking-copy">AI is understanding your question...</p>
-                                                        <p className="text-xs text-slate-400">Checking live data, reason, and maintenance timing.</p>
+                                                    <div className="bot-avatar-thinking w-10 h-10 rounded-full bg-blue-950 border border-blue-500/60 flex-shrink-0"></div>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-3">
+                                                            <p className="text-sm text-on-dark thinking-copy">Preparing exact answer</p>
+                                                            <div className="typing-indicator" aria-label="AI is typing">
+                                                                <span></span>
+                                                                <span></span>
+                                                                <span></span>
+                                                                <span></span>
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-slate-400 mt-1">Using only the details your question needs.</p>
+                                                        <div className="thinking-progress mt-3"><span></span></div>
                                                     </div>
                                                 </div>
                                             </div>
