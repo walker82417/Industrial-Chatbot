@@ -402,6 +402,12 @@
 
                 const [bestIntent, bestScore] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
                 return bestScore > 0 ? bestIntent : 'health_status';
+                const q = question.toLowerCase();
+                if (/(healthy|health|safe|status|normal)/.test(q)) return 'health_status';
+                if (/(fault|problem|issue|failure|abnormal)/.test(q)) return 'fault_detection';
+                if (/(why|reason|cause|increasing|increase)/.test(q)) return 'reason_analysis';
+                if (/(should|recommend|action|do now|stop|maintenance)/.test(q)) return 'recommendation';
+                return 'general';
             };
 
             const AI_MODEL_ENDPOINT_KEY = 'industrialAiModelEndpoint';
