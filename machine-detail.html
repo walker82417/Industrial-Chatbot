@@ -212,6 +212,8 @@
             const [speedData, setSpeedData] = React.useState([]);
             const [voltageData, setVoltageData] = React.useState([]);
             const [powerData, setPowerData] = React.useState([]);
+            const [calculatedPowerData, setCalculatedPowerData] = React.useState([]);
+            const [powerFactorData, setPowerFactorData] = React.useState([]);
             const [currentData, setCurrentData] = React.useState([]);
             const [liveDataError, setLiveDataError] = React.useState('');
             const [lastGeneratedAt, setLastGeneratedAt] = React.useState('');
@@ -223,6 +225,7 @@
                 lucide.createIcons();
 
                 // Initialize charts
+                let tempChart, vibChart, speedChart, currentChart, voltageChart, waveformChart;
                 let tempChart, vibChart, speedChart, currentChart, voltageChart;
 
                 const initCharts = () => {
@@ -494,6 +497,30 @@
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } } } }
                     });
 
+                    // Electrical Waveform Chart
+                    const waveformCtx = document.getElementById('waveformChart').getContext('2d');
+                    waveformChart = new Chart(waveformCtx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                { label: 'Voltage waveform (V)', data: [], borderColor: '#22c55e', borderWidth: 2, tension: 0.35, pointRadius: 0, yAxisID: 'y' },
+                                { label: 'Current waveform (A)', data: [], borderColor: '#3b82f6', borderWidth: 2, tension: 0.35, pointRadius: 0, yAxisID: 'y1' }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                                y: { position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                                y1: { position: 'right', ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false } }
+                            }
+                        }
+                    });
+
+                    return { tempChart, vibChart, speedChart, currentChart, voltageChart, waveformChart };
                     return { tempChart, vibChart, speedChart, currentChart, voltageChart };
                 };
 
@@ -512,11 +539,19 @@
                             const powers = feeds.map((f) => Number(f.field3) || 0);
                             const vibrations = feeds.map((f) => Number(f.field4) || 0);
                             const temperatures = feeds.map((f) => Number(f.field5) || 0);
+                            const calculatedPowers = feeds.map((f) => (Number(f.field1) || 0) * (Number(f.field2) || 0));
+                            const powerFactors = feeds.map((f, index) => {
+                                const apparentPower = calculatedPowers[index];
+                                const realPower = Number(f.field3) || 0;
+                                return apparentPower > 0 ? Math.max(0, Math.min(1, realPower / apparentPower)) : 0;
+                            });
 
                             setTimeLabels(labels);
                             setVoltageData(volts);
                             setCurrentData(currents);
                             setPowerData(powers);
+                            setCalculatedPowerData(calculatedPowers);
+                            setPowerFactorData(powerFactors);
                             setVibrationData(vibrations);
                             setTemperatureData(temperatures);
                             setLiveDataError('');
@@ -537,12 +572,27 @@
                             charts.speedChart.data.labels = labels;
                             charts.speedChart.data.datasets[0].data = powers;
                             charts.speedChart.update();
+
+                            const latestIndex = feeds.length - 1;
+                            const latestVoltage = volts[latestIndex] || 0;
+                            const latestCurrent = currents[latestIndex] || 0;
+                            const latestPowerFactor = powerFactors[latestIndex] || 0;
+                            const phaseShift = Math.acos(Math.max(-1, Math.min(1, latestPowerFactor)));
+                            const waveformLabels = Array.from({ length: 121 }, (_, index) => `${index * 3}°`);
+                            const voltageWaveform = waveformLabels.map((_, index) => latestVoltage * Math.sin((index * 3 * Math.PI) / 180));
+                            const currentWaveform = waveformLabels.map((_, index) => latestCurrent * Math.sin((index * 3 * Math.PI) / 180 - phaseShift));
+                            charts.waveformChart.data.labels = waveformLabels;
+                            charts.waveformChart.data.datasets[0].data = voltageWaveform;
+                            charts.waveformChart.data.datasets[1].data = currentWaveform;
+                            charts.waveformChart.update();
                         } catch (error) {
                             console.error(error);
                             setLiveDataError('Unable to load live graph data.');
                             setVoltageData([]);
                             setCurrentData([]);
                             setPowerData([]);
+                            setCalculatedPowerData([]);
+                            setPowerFactorData([]);
                             setVibrationData([]);
                             setTemperatureData([]);
                         }
@@ -556,6 +606,7 @@
                         if (charts.speedChart) charts.speedChart.destroy();
                         if (charts.currentChart) charts.currentChart.destroy();
                         if (charts.voltageChart) charts.voltageChart.destroy();
+                        if (charts.waveformChart) charts.waveformChart.destroy();
                     };
                 }
 
@@ -635,6 +686,7 @@
                     if (charts.speedChart) charts.speedChart.destroy();
                     if (charts.currentChart) charts.currentChart.destroy();
                     if (charts.voltageChart) charts.voltageChart.destroy();
+                    if (charts.waveformChart) charts.waveformChart.destroy();
                 };
             }, [machineId]);
 
@@ -674,9 +726,9 @@
 
             const handleExportCsv = () => {
                 if (!timeLabels.length) return;
-                let csv = 'Date Time,Voltage (V),Current (A),Power (W),Vibration (mm/s),Temperature (°F)\n';
+                let csv = 'Date Time,Voltage (V),Current (A),Measured Power (W),Calculated Power (VA),Power Factor,Vibration (mm/s),Temperature (°F)\n';
                 for (let i = 0; i < timeLabels.length; i++) {
-                    csv += `${timeLabels[i]},${voltageData[i] ?? ''},${currentData[i] ?? ''},${powerData[i] ?? ''},${vibrationData[i] ?? ''},${temperatureData[i] ?? ''}\n`;
+                    csv += `${timeLabels[i]},${voltageData[i] ?? ''},${currentData[i] ?? ''},${powerData[i] ?? ''},${calculatedPowerData[i] ?? ''},${powerFactorData[i] ?? ''},${vibrationData[i] ?? ''},${temperatureData[i] ?? ''}\n`;
                 }
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -782,6 +834,31 @@
                                     </span>
                                 </div>
                             </div>
+                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                                <h3 className="text-lg font-semibold text-on-dark mb-4">Calculated Power (V × I)</h3>
+                                <div className="mt-4 text-center">
+                                    <span className="text-2xl font-bold text-on-dark">
+                                        {calculatedPowerData.length > 0 ? Number(calculatedPowerData[calculatedPowerData.length - 1]).toFixed(1) : 'Loading...'} VA
+                                    </span>
+                                </div>
+                                <p className="text-secondary-on-dark text-sm mt-3 text-center">Calculated using latest voltage × current.</p>
+                            </div>
+                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                                <h3 className="text-lg font-semibold text-on-dark mb-4">Power Factor</h3>
+                                <div className="mt-4 text-center">
+                                    <span className="text-2xl font-bold text-on-dark">
+                                        {powerFactorData.length > 0 ? Number(powerFactorData[powerFactorData.length - 1]).toFixed(3) : 'Loading...'}
+                                    </span>
+                                </div>
+                                <p className="text-secondary-on-dark text-sm mt-3 text-center">PF = measured real power ÷ calculated apparent power.</p>
+                            </div>
+                        </div>
+                        <div className="card-on-dark rounded-xl shadow-md p-6 mb-8">
+                            <h3 className="text-lg font-semibold text-on-dark mb-4">Electrical Waveform</h3>
+                            <div className="chart-container">
+                                <canvas id="waveformChart"></canvas>
+                            </div>
+                            <p className="text-secondary-on-dark text-sm mt-4">Waveform uses latest voltage/current magnitudes and calculated phase shift from power factor.</p>
                         </div>
                         <div className="card-on-dark rounded-xl shadow-md p-6">
                             <h3 className="text-lg font-semibold text-on-dark mb-4">Maintenance Information</h3>
@@ -792,15 +869,15 @@
                                 </div>
                                 <div>
                                     <p className="text-secondary-on-dark">Next Scheduled Maintenance</p>
-                                    <p className="font-medium text-on-dark">2023-07-15</p>
+                                    <p className="font-medium text-on-dark">NA</p>
                                 </div>
                                 <div>
                                     <p className="text-secondary-on-dark">Total Operating Hours</p>
-                                    <p className="font-medium text-on-dark">4,285 hours</p>
+                                    <p className="font-medium text-on-dark">NA</p>
                                 </div>
                                 <div>
                                     <p className="text-secondary-on-dark">Efficiency Rating</p>
-                                    <p className="font-medium text-on-dark">92%</p>
+                                    <p className="font-medium text-on-dark">NA</p>
                                 </div>
                             </div>
                         </div>

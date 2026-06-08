@@ -370,6 +370,38 @@
             const chatContainerRef = React.useRef(null);
 
             const detectIntent = (question) => {
+                const q = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+                const intentSignals = {
+                    health_status: [
+                        'healthy', 'health', 'safe', 'status', 'condition', 'normal', 'okay', 'ok',
+                        'fine', 'running', 'doing', 'state', 'working', 'stable', 'good', 'bad'
+                    ],
+                    fault_detection: [
+                        'fault', 'faulty', 'problem', 'issue', 'failure', 'fail', 'abnormal', 'defect',
+                        'damage', 'detected', 'bearing', 'vibration', 'overheat', 'alarm', 'danger'
+                    ],
+                    reason_analysis: [
+                        'why', 'reason', 'cause', 'because', 'explain', 'increasing', 'increase',
+                        'rising', 'high', 'hot', 'heating', 'changed', 'fluctuate', 'unstable'
+                    ],
+                    recommendation: [
+                        'should', 'recommend', 'suggest', 'action', 'do', 'stop', 'continue', 'run',
+                        'shutdown', 'maintenance', 'repair', 'inspect', 'prevent', 'next', 'now'
+                    ]
+                };
+
+                const scores = Object.entries(intentSignals).reduce((acc, [intent, words]) => {
+                    acc[intent] = words.reduce((score, word) => score + (q.includes(word) ? 1 : 0), 0);
+                    return acc;
+                }, {});
+
+                if (/can i|do i need|is it okay|is it safe|what to do/.test(q)) scores.recommendation += 2;
+                if (/what happened|what is happening|what is wrong/.test(q)) scores.reason_analysis += 2;
+                if (/any fault|fault found|fault detected/.test(q)) scores.fault_detection += 2;
+                if (/how is|machine condition|motor condition|machine status|motor status/.test(q)) scores.health_status += 2;
+
+                const [bestIntent, bestScore] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+                return bestScore > 0 ? bestIntent : 'health_status';
                 const q = question.toLowerCase();
                 if (/(healthy|health|safe|status|normal)/.test(q)) return 'health_status';
                 if (/(fault|problem|issue|failure|abnormal)/.test(q)) return 'fault_detection';
