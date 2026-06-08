@@ -116,11 +116,9 @@
 <body class="brand-dark min-h-screen">
     <div id="root"></div>
     <script type="text/javascript">
-        // Mock Data
+        // Initial Chat Data
         const mockChatMessages = [
-            { id: 1, sender: "ai", text: "Hello! I'm your Industrial AI Assistant. How can I help you today?", timestamp: "10:00 AM" },
-            { id: 2, sender: "user", text: "What's the status of Assembly Line C?", timestamp: "10:02 AM" },
-            { id: 3, sender: "ai", text: "Assembly Line C is currently showing critical status due to bearing wear detected. I recommend immediate maintenance to prevent downtime.", timestamp: "10:03 AM" }
+            { id: 1, sender: "ai", text: "Hello! Ask me about motor health, faults, warning reasons, or what action to take.", timestamp: "10:00 AM" }
         ];
         const expertTopics = [
             "Machine Diagnostics",
@@ -247,24 +245,77 @@
             const [isLoading, setIsLoading] = React.useState(true);
 
             React.useEffect(() => {
-                // Check subscription status
-                const savedSubscription = localStorage.getItem('subscription');
-                if (savedSubscription) {
-                    try {
-                        const subscription = JSON.parse(savedSubscription);
-                        const now = new Date();
-                        const subDate = new Date(subscription.timestamp);
-                        const daysSinceSub = Math.floor((now - subDate) / (1000 * 60 * 60 * 24));
+                const isSubscriptionActive = (subscription) => {
+                    if (!subscription) return false;
+                    const activeUserId = localStorage.getItem('userId');
+                    const activeEmail = localStorage.getItem('userEmail');
+                    const belongsToCurrentUser = (!subscription.userId || subscription.userId === activeUserId)
+                        && (!subscription.userEmail || subscription.userEmail === activeEmail);
+                    const startDate = new Date(subscription.startDate || subscription.timestamp);
+                    const expiryDate = subscription.expiresAt
+                        ? new Date(subscription.expiresAt)
+                        : new Date(startDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+                    return belongsToCurrentUser && Number.isFinite(startDate.getTime()) && new Date() <= expiryDate;
+                };
 
-                        setHasSubscription(daysSinceSub <= 30);
-                    } catch (e) {
-                        console.error('Error parsing subscription data:', e);
-                        setHasSubscription(false);
+                const loadSubscriptionStatus = async () => {
+                    const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                    const database = window.industrialFirebase && window.industrialFirebase.database;
+                    const localSubscription = localStorage.getItem('subscription');
+
+                    if (localSubscription) {
+                        try {
+                            const parsedSubscription = JSON.parse(localSubscription);
+                            if (isSubscriptionActive(parsedSubscription)) {
+                                setHasSubscription(true);
+                                setIsLoading(false);
+                                return;
+                            }
+                        } catch (e) {
+                            console.error('Error parsing subscription data:', e);
+                        }
                     }
-                } else {
-                    setHasSubscription(false);
-                }
-                setIsLoading(false);
+
+                    if (!auth || !database) {
+                        setHasSubscription(false);
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+                        if (!user) {
+                            setHasSubscription(false);
+                            setIsLoading(false);
+                            return;
+                        }
+
+                        try {
+                            const snapshot = await database.ref(`users/${user.uid}/subscription`).once('value');
+                            const remoteSubscription = snapshot.val();
+                            const active = isSubscriptionActive(remoteSubscription);
+                            if (active) {
+                                localStorage.setItem('subscription', JSON.stringify(remoteSubscription));
+                            }
+                            setHasSubscription(active);
+                        } catch (error) {
+                            console.error('Failed to load saved subscription:', error);
+                            setHasSubscription(false);
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    });
+
+                    return () => unsubscribe();
+                };
+
+                let cleanup;
+                loadSubscriptionStatus().then((unsubscribe) => {
+                    cleanup = unsubscribe;
+                });
+
+                return () => {
+                    if (cleanup) cleanup();
+                };
             }, []);
 
             if (isLoading) {
@@ -318,6 +369,132 @@
             const [isTyping, setIsTyping] = React.useState(false);
             const chatContainerRef = React.useRef(null);
 
+            const detectIntent = (question) => {
+                const q = question.toLowerCase();
+                if (/(healthy|health|safe|status|normal)/.test(q)) return 'health_status';
+                if (/(fault|problem|issue|failure|abnormal)/.test(q)) return 'fault_detection';
+                if (/(why|reason|cause|increasing|increase)/.test(q)) return 'reason_analysis';
+                if (/(should|recommend|action|do now|stop|maintenance)/.test(q)) return 'recommendation';
+                return 'general';
+            };
+
+            const AI_MODEL_ENDPOINT_KEY = 'industrialAiModelEndpoint';
+
+            const predictionLabels = ['Normal', 'Warning', 'Failure'];
+            const faultLabels = ['Healthy', 'Bearing Fault'];
+
+            const fallbackPrediction = (data) => {
+                const rules = [
+                    data.temperature >= 80 ? 2 : data.temperature >= 70 ? 1 : 0,
+                    data.vibration >= 5 ? 2 : data.vibration >= 3 ? 1 : 0,
+                    data.current >= 25 || data.power >= 3500 ? 1 : 0,
+                    data.voltage <= 180 || data.voltage >= 260 ? 1 : 0
+                ];
+                const score = rules.reduce((sum, value) => sum + value, 0);
+                const prediction = score >= 4 ? 2 : score >= 2 ? 1 : 0;
+                const fault = data.vibration >= 4 || data.temperature >= 78 ? 1 : 0;
+                return {
+                    prediction,
+                    fault,
+                    predictionText: predictionLabels[prediction],
+                    faultText: faultLabels[fault],
+                    confidence: prediction === 0 ? 0.82 : 0.74,
+                    source: 'Local safety fallback'
+                };
+            };
+
+            const normalizeModelResult = (result, data) => {
+                const fallback = fallbackPrediction(data);
+                const rawPrediction = result.prediction ?? result.prediction_class ?? result.status_code ?? result.status;
+                const rawFault = result.fault_class ?? result.fault ?? result.fault_code;
+                const prediction = Number.isFinite(Number(rawPrediction))
+                    ? Number(rawPrediction)
+                    : predictionLabels.findIndex((label) => label.toLowerCase() === String(rawPrediction || '').toLowerCase());
+                const fault = Number.isFinite(Number(rawFault))
+                    ? Number(rawFault)
+                    : faultLabels.findIndex((label) => label.toLowerCase() === String(rawFault || '').toLowerCase());
+
+                return {
+                    prediction: prediction >= 0 ? prediction : fallback.prediction,
+                    fault: fault >= 0 ? fault : fallback.fault,
+                    predictionText: result.label || result.prediction_label || predictionLabels[prediction] || fallback.predictionText,
+                    faultText: result.fault_label || faultLabels[fault] || fallback.faultText,
+                    confidence: Number(result.confidence ?? result.probability ?? fallback.confidence),
+                    source: 'External fault model'
+                };
+            };
+
+            const runFaultModel = async (data) => {
+                const endpoint = localStorage.getItem(AI_MODEL_ENDPOINT_KEY);
+                if (!endpoint) return fallbackPrediction(data);
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    if (!response.ok) throw new Error('External fault model is not reachable');
+                    return normalizeModelResult(await response.json(), data);
+                } catch (error) {
+                    console.error('External fault model failed, using local fallback:', error);
+                    return { ...fallbackPrediction(data), source: 'Local safety fallback (external model unavailable)' };
+                }
+            };
+
+            const generateResponse = ({ intent, modelResult, data, generatedAt }) => {
+                const { prediction, fault, predictionText, faultText, confidence, source } = modelResult;
+                const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : 'N/A';
+
+                const contextLine = `Live analysis → Prediction: ${predictionText}, Fault: ${faultText}, Confidence: ${confidenceText}, Source: ${source}, Voltage: ${data.voltage} V, Current: ${data.current} A, Power: ${data.power} W, Vibration: ${data.vibration}, Temperature: ${data.temperature} °F, Timestamp: ${generatedAt}.`;
+
+                if (intent === 'health_status') {
+                    if (prediction === 0) return `✅ Motor appears healthy and operating in normal range.\n${contextLine}`;
+                    if (prediction === 1) return `⚠️ Motor is in warning condition. Preventive checks are recommended.\n${contextLine}`;
+                    return `🚨 Motor health is critical. Immediate intervention is advised.\n${contextLine}`;
+                }
+
+                if (intent === 'fault_detection') {
+                    if (fault === 1) return `⚠️ Fault detected: probable bearing-related issue.\n${contextLine}`;
+                    return `✅ No major fault signature detected at the moment.\n${contextLine}`;
+                }
+
+                if (intent === 'reason_analysis') {
+                    if (data.temperature >= 78 && data.vibration >= 4) return `Temperature rise is likely linked to mechanical friction/bearing degradation.\n${contextLine}`;
+                    if (data.temperature >= 78) return `Temperature is elevated; check cooling, lubrication, and load conditions.\n${contextLine}`;
+                    if (data.vibration >= 4) return `Higher vibration indicates possible imbalance/misalignment or bearing wear.\n${contextLine}`;
+                    return `No dominant abnormal driver found in the latest sample; continue monitoring trend.\n${contextLine}`;
+                }
+
+                if (intent === 'recommendation') {
+                    if (prediction === 2) return `🛑 Recommendation: stop machine safely, inspect bearing and alignment, and run maintenance before restart.\n${contextLine}`;
+                    if (prediction === 1) return `🧰 Recommendation: schedule preventive maintenance and inspect bearing/lubrication soon.\n${contextLine}`;
+                    return `✅ Recommendation: continue operation and monitor periodically.\n${contextLine}`;
+                }
+
+                return `I can help with health status, fault detection, reason analysis, and recommendations.\n${contextLine}`;
+            };
+
+            const runRealtimeAnalysis = async (question) => {
+                const response = await fetch('https://api.thingspeak.com/channels/3340934/feeds/last.json?api_key=582TFZMMRBY94Z5S');
+                if (!response.ok) throw new Error('Unable to fetch live motor data');
+                const feed = await response.json();
+
+                const data = {
+                    voltage: Number(feed.field1) || 0,
+                    current: Number(feed.field2) || 0,
+                    power: Number(feed.field3) || 0,
+                    vibration: Number(feed.field4) || 0,
+                    temperature: Number(feed.field5) || 0
+                };
+
+                const intent = detectIntent(question);
+                const modelResult = await runFaultModel(data);
+                const generatedAt = feed.created_at ? new Date(feed.created_at).toLocaleString() : new Date().toLocaleString();
+                return generateResponse({ intent, modelResult, data, generatedAt });
+            };
+
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
@@ -342,17 +519,28 @@
                 setMessage('');
                 setIsTyping(true);
 
-                // Simulate AI response after a delay
-                setTimeout(() => {
-                    const aiResponse = {
-                        id: messages.length + 2,
-                        sender: 'ai',
-                        text: "I'm analyzing your request. This is a simulated response from the AI assistant.",
-                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    };
-                    setMessages(prev => [...prev, aiResponse]);
-                    setIsTyping(false);
-                }, 1500);
+                (async () => {
+                    try {
+                        const responseText = await runRealtimeAnalysis(newMessage.text);
+                        const aiResponse = {
+                            id: Date.now(),
+                            sender: 'ai',
+                            text: responseText,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        };
+                        setMessages(prev => [...prev, aiResponse]);
+                    } catch (error) {
+                        const aiResponse = {
+                            id: Date.now(),
+                            sender: 'ai',
+                            text: `I couldn't complete live analysis right now. Please retry in a few seconds. (${error.message})`,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        };
+                        setMessages(prev => [...prev, aiResponse]);
+                    } finally {
+                        setIsTyping(false);
+                    }
+                })();
             };
 
             const handleKeyPress = (e) => {
