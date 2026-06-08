@@ -111,6 +111,61 @@
                 opacity: 1;
             }
         }
+
+
+        .bot-avatar-thinking {
+            position: relative;
+            animation: botPulse 1.8s ease-in-out infinite;
+        }
+
+        .bot-avatar-thinking::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border: 1px solid rgba(59, 130, 246, 0.55);
+            border-radius: 9999px;
+            animation: botRing 1.8s ease-out infinite;
+        }
+
+        .response-card-thinking {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .response-card-thinking::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -40%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+            animation: thinkingSweep 1.6s ease-in-out infinite;
+        }
+
+        .thinking-copy {
+            animation: softBlink 1.8s ease-in-out infinite;
+        }
+
+        @keyframes botPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.25); transform: scale(1); }
+            50% { box-shadow: 0 0 24px 2px rgba(59, 130, 246, 0.35); transform: scale(1.04); }
+        }
+
+        @keyframes botRing {
+            0% { opacity: 0.9; transform: scale(0.88); }
+            100% { opacity: 0; transform: scale(1.35); }
+        }
+
+        @keyframes thinkingSweep {
+            0% { left: -40%; }
+            100% { left: 110%; }
+        }
+
+        @keyframes softBlink {
+            0%, 100% { opacity: 0.65; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="brand-dark min-h-screen">
@@ -413,6 +468,10 @@
 
             const normalizeQuestion = (question) => String(question || '')
                 .toLowerCase()
+                .replace(/\b(maintainance|maintenence|maintenancee|maintanance|metannce|metanance|mntenance|maintaince|servicng|servicing)\b/g, 'maintenance')
+                .replace(/\b(requird|requred|reqired|reqd|requre|requiered)\b/g, 'required')
+                .replace(/\b(nxt|nexxt)\b/g, 'next')
+                .replace(/\b(shedule|schedul|sedule)\b/g, 'schedule')
                 .replace(/[^a-z0-9\s]/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
@@ -444,7 +503,7 @@
                     recommendation: [
                         'should', 'recommend', 'suggest', 'action', 'do', 'stop', 'continue', 'run',
                         'shutdown', 'maintenance', 'repair', 'inspect', 'prevent', 'next', 'now',
-                        'schedule', 'service', 'fix', 'plan'
+                        'schedule', 'service', 'fix', 'plan', 'when', 'required', 'due', 'deadline'
                     ],
                     report: ['report', 'summary', 'full detail', 'details', 'generate', 'print', 'record']
                 };
@@ -460,6 +519,8 @@
                 if (/how is|machine condition|motor condition|machine status|motor status|check status|current status/.test(q)) scores.health_status += 3;
                 if (/generate report|make report|show report|health report/.test(q)) scores.report += 4;
                 if (/schedule maintenance|maintenance schedule|service plan/.test(q)) scores.recommendation += 4;
+                const needsMaintenanceTiming = /(when|next|due|required|schedule|time).*(maintenance|service|repair)|maintenance.*(when|next|due|required|schedule|time)/.test(q);
+                if (needsMaintenanceTiming) scores.recommendation += 6;
 
                 const actionIntentMap = {
                     status: 'health_status',
@@ -490,7 +551,8 @@
                     action: requestedAction || (finalIntent === 'report' ? 'report' : null),
                     isGreeting: scores.greeting > 0 && q.split(' ').length <= 4,
                     isFollowUp: Boolean(previousIntent && isShortFollowUp && !requestedAction),
-                    referencedIntent: previousIntent || null
+                    referencedIntent: previousIntent || null,
+                    needsMaintenanceTiming
                 };
             };
 
@@ -599,6 +661,14 @@
                 return 'No urgent maintenance is needed. Keep normal monitoring and do the next routine service as planned.';
             };
 
+            const getMaintenanceSchedule = (prediction, fault, data) => {
+                if (prediction === 2) return 'Required immediately — stop safely and inspect before the next restart.';
+                if (fault === 1 || data.temperature >= 78 || data.vibration >= 4) return 'Required within 24 hours because the readings show fault risk.';
+                if (prediction === 1 || data.temperature >= 70 || data.vibration >= 3) return 'Required within 48 hours to prevent the warning from becoming a failure.';
+                if (data.current >= 18 || data.power >= 2500) return 'Plan it within the next 7 days because the motor is under moderate load.';
+                return 'No urgent service is required; keep the next routine maintenance window, about 30 days or your normal plant schedule.';
+            };
+
             const buildDataLine = (data, generatedAt, confidenceText, source) => (
                 `Data: ${data.voltage} V, ${data.current} A, ${data.power} W, vibration ${data.vibration}, temperature ${data.temperature} °F. Updated: ${generatedAt}. Confidence: ${confidenceText}. Source: ${source}.`
             );
@@ -611,6 +681,7 @@
                 const reasons = getMainReasons(data, modelResult);
                 const reasonText = reasons.join('; ');
                 const maintenancePlan = getMaintenancePlan(prediction, fault, data);
+                const maintenanceSchedule = getMaintenanceSchedule(prediction, fault, data);
                 const dataLine = buildDataLine(data, generatedAt, confidenceText, source);
                 const greeting = profile.isGreeting ? 'Hi! ' : '';
                 const followUpLine = profile.isFollowUp ? 'Following up on your last question: ' : '';
@@ -620,6 +691,7 @@
 Status: ${statusText}
 Load: ${loadText}
 Fault: ${fault === 1 ? faultText : 'No major fault'}
+Next maintenance: ${maintenanceSchedule}
 Reason: ${reasonText}.
 Action: ${maintenancePlan}
 ${dataLine}`;
@@ -637,6 +709,11 @@ Reason: ${reasonText}.
 Action: continue normal monitoring.
 ${dataLine}`;
                 }
+                if (prediction === 1 || fault === 1 || data.temperature >= 70 || data.vibration >= 3) {
+                    return 'Schedule preventive maintenance soon; check bearing condition, lubrication, mounting bolts, cooling, and load balance.';
+                }
+                return 'No urgent maintenance is needed. Keep normal monitoring and do the next routine service as planned.';
+            };
 
                 if (profile.intent === 'reason_analysis') {
                     return `${greeting}${followUpLine}Reason: ${reasonText}.
@@ -646,7 +723,16 @@ ${dataLine}`;
                 }
 
                 if (profile.intent === 'recommendation') {
+                    if (profile.needsMaintenanceTiming) {
+                        return `${greeting}${followUpLine}Next maintenance: ${maintenanceSchedule}
+Why: ${reasonText}.
+Current status: ${statusText}; ${loadText}; fault result is ${fault === 1 ? faultText : 'clear'}.
+What to do: ${maintenancePlan}
+${dataLine}`;
+                    }
+
                     return `${greeting}${followUpLine}Maintenance action: ${maintenancePlan}
+Next maintenance: ${maintenanceSchedule}
 Why: ${reasonText}.
 Current status: ${statusText}; ${loadText}; fault result is ${fault === 1 ? faultText : 'clear'}.
 ${dataLine}`;
@@ -686,6 +772,7 @@ ${dataLine}`;
                         faultDetected: modelResult.fault === 1,
                         reasons: getMainReasons(data, modelResult),
                         maintenancePlan: getMaintenancePlan(modelResult.prediction, modelResult.fault, data),
+                        maintenanceSchedule: getMaintenanceSchedule(modelResult.prediction, modelResult.fault, data),
                         data,
                         generatedAt
                     }
@@ -799,12 +886,14 @@ ${dataLine}`;
                             <div className="card-on-dark border-b border-slate-800 p-4">
                                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                     <div className="flex items-center">
-                                        <div className="w-10 h-10 bg-blue-900 rounded-full flex items-center justify-center mr-3">
+                                        <div className={`w-10 h-10 bg-blue-900 rounded-full flex items-center justify-center mr-3 ${isTyping ? 'bot-avatar-thinking' : ''}`}>
                                             <i data-lucide="bot" className="w-5 h-5 text-blue-400"></i>
                                         </div>
                                         <div>
                                             <h2 className="font-semibold text-on-dark">Industrial AI Assistant</h2>
-                                            <p className="text-sm text-secondary-on-dark">Ready to analyze live ThingSpeak motor data</p>
+                                            <p className={`text-sm text-secondary-on-dark ${isTyping ? 'thinking-copy' : ''}`}>
+                                                {isTyping ? 'Understanding your question and checking live motor data...' : 'Ready to analyze live ThingSpeak motor data'}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -845,12 +934,18 @@ ${dataLine}`;
                                     ))}
 
                                     {isTyping && (
-                                        <div className="mb-4">
-                                            <div className="inline-block card-on-dark border border-slate-700 px-4 py-2 rounded-lg">
-                                                <div className="typing-indicator">
-                                                    <span></span>
-                                                    <span></span>
-                                                    <span></span>
+                                        <div className="mb-4 chat-message">
+                                            <div className="inline-block card-on-dark response-card-thinking border border-blue-800/70 px-4 py-3 rounded-lg shadow-lg">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="typing-indicator">
+                                                        <span></span>
+                                                        <span></span>
+                                                        <span></span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-on-dark thinking-copy">AI is understanding your question...</p>
+                                                        <p className="text-xs text-slate-400">Checking live data, reason, and maintenance timing.</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
