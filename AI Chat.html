@@ -709,6 +709,11 @@ Reason: ${reasonText}.
 Action: continue normal monitoring.
 ${dataLine}`;
                 }
+                if (prediction === 1 || fault === 1 || data.temperature >= 70 || data.vibration >= 3) {
+                    return 'Schedule preventive maintenance soon; check bearing condition, lubrication, mounting bolts, cooling, and load balance.';
+                }
+                return 'No urgent maintenance is needed. Keep normal monitoring and do the next routine service as planned.';
+            };
 
                 if (profile.intent === 'reason_analysis') {
                     return `${greeting}${followUpLine}Reason: ${reasonText}.
