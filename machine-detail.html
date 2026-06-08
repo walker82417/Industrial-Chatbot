@@ -70,6 +70,29 @@
             height: 200px;
             width: 100%;
         }
+
+        .detail-card {
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .detail-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 16px 40px -24px rgba(59, 130, 246, 0.9);
+        }
+
+        .health-ring {
+            background: conic-gradient(#3b82f6 var(--score), #1e293b 0);
+        }
+
+        .live-dot {
+            animation: livePulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 0.45; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
     </style>
 </head>
 <body class="brand-dark min-h-screen">
@@ -226,7 +249,6 @@
 
                 // Initialize charts
                 let tempChart, vibChart, speedChart, currentChart, voltageChart, waveformChart;
-                let tempChart, vibChart, speedChart, currentChart, voltageChart;
 
                 const initCharts = () => {
                     // Generate initial data
@@ -521,7 +543,6 @@
                     });
 
                     return { tempChart, vibChart, speedChart, currentChart, voltageChart, waveformChart };
-                    return { tempChart, vibChart, speedChart, currentChart, voltageChart };
                 };
 
                 const charts = initCharts();
@@ -724,6 +745,75 @@
                 }
             };
 
+            const getLatestValue = (series, fallback = 0) => {
+                const latest = series.length ? Number(series[series.length - 1]) : fallback;
+                return Number.isFinite(latest) ? latest : fallback;
+            };
+
+            const latestVoltage = getLatestValue(voltageData);
+            const latestCurrent = getLatestValue(currentData);
+            const latestPower = getLatestValue(powerData);
+            const latestVibration = getLatestValue(vibrationData);
+            const latestTemperature = getLatestValue(temperatureData);
+            const latestPowerFactor = getLatestValue(powerFactorData);
+            const latestCalculatedPower = getLatestValue(calculatedPowerData);
+
+            const getHealthSummary = () => {
+                let score = 96;
+                const reasons = [];
+
+                if (latestTemperature >= 80) { score -= 28; reasons.push('temperature is critical'); }
+                else if (latestTemperature >= 70) { score -= 12; reasons.push('temperature is warming up'); }
+
+                if (latestVibration >= 5) { score -= 30; reasons.push('vibration is high'); }
+                else if (latestVibration >= 3) { score -= 14; reasons.push('vibration is elevated'); }
+
+                if (latestCurrent >= 25 || latestPower >= 3500) { score -= 12; reasons.push('electrical load is high'); }
+                if (latestVoltage && (latestVoltage < 180 || latestVoltage > 260)) { score -= 10; reasons.push('voltage is outside safe band'); }
+
+                const safeScore = Math.max(20, Math.min(100, score));
+                const status = safeScore < 55 ? 'Critical' : safeScore < 78 ? 'Warning' : 'Healthy';
+                const color = safeScore < 55 ? 'text-red-300' : safeScore < 78 ? 'text-yellow-300' : 'text-green-300';
+                const maintenance = safeScore < 55
+                    ? 'Maintenance required immediately before restart.'
+                    : safeScore < 78
+                        ? 'Plan preventive maintenance within 48 hours.'
+                        : 'Routine maintenance is enough for now.';
+
+                return {
+                    score: safeScore,
+                    status,
+                    color,
+                    reasons: reasons.length ? reasons : ['all major readings look stable'],
+                    maintenance
+                };
+            };
+
+            const healthSummary = getHealthSummary();
+            const nextMaintenance = healthSummary.status === 'Critical'
+                ? 'Immediate inspection'
+                : healthSummary.status === 'Warning'
+                    ? 'Within 48 hours'
+                    : 'Routine window';
+            const operatingHours = machine.type === 'motor' ? 'Live monitored' : 'Simulated trend';
+            const efficiencyRating = latestPowerFactor ? `${Math.round(latestPowerFactor * 100)}% PF` : 'Calculating';
+
+            const metricCards = [
+                { label: 'Voltage', value: latestVoltage ? latestVoltage.toFixed(1) : '—', unit: 'V', icon: 'zap', hint: 'Input supply level' },
+                { label: 'Current', value: latestCurrent ? latestCurrent.toFixed(1) : '—', unit: 'A', icon: 'activity', hint: 'Motor electrical draw' },
+                { label: 'Power', value: latestPower ? latestPower.toFixed(1) : '—', unit: 'W', icon: 'gauge', hint: 'Real measured power' },
+                { label: 'Temperature', value: latestTemperature ? latestTemperature.toFixed(1) : '—', unit: '°F', icon: 'thermometer', hint: latestTemperature >= 70 ? 'Watch cooling and load' : 'Thermal level stable' }
+            ];
+
+            const openAiWithPrompt = (prompt) => {
+                localStorage.setItem('industrialAiSuggestedPrompt', prompt);
+                window.location.href = `AI Chat.html?prompt=${encodeURIComponent(prompt)}`;
+            };
+
+            const scrollToMaintenance = () => {
+                document.getElementById('maintenance-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+
             const handleExportCsv = () => {
                 if (!timeLabels.length) return;
                 let csv = 'Date Time,Voltage (V),Current (A),Measured Power (W),Calculated Power (VA),Power Factor,Vibration (mm/s),Temperature (°F)\n';
@@ -745,31 +835,54 @@
                 <div>
                     <NavBar />
                     <div className="p-8">
-                        <div className="mb-8">
-                            <div className="flex justify-between items-start">
+                        <div className="mb-8 card-on-dark rounded-2xl p-6 shadow-xl">
+                            <button
+                                className="flex items-center text-blue-400 hover:text-blue-300 mb-5"
+                                onClick={() => window.location.href = "dashboard.html"}
+                            >
+                                <i data-lucide="arrow-left" className="w-4 h-4 mr-1"></i>
+                                Back to Dashboard
+                            </button>
+                            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                                    <button
-                                        className="flex items-center text-blue-400 hover:text-blue-300 mb-4"
-                                        onClick={() => window.location.href = "dashboard.html"}
-                                    >
-                                        <i data-lucide="arrow-left" className="w-4 h-4 mr-1"></i>
-                                        Back to Dashboard
-                                    </button>
-                                    <h1 className="text-2xl font-bold text-on-dark mb-2">{machine.name}</h1>
+                                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                                        <h1 className="text-3xl font-bold text-on-dark">{machine.name}</h1>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(machine.status)}`}>
+                                            {getStatusText(machine.status)}
+                                        </span>
+                                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-sm text-green-300">
+                                            <span className="live-dot h-2 w-2 rounded-full bg-green-400"></span>
+                                            {machine.type === 'motor' ? 'Live feed connected' : 'Simulated monitoring'}
+                                        </span>
+                                    </div>
                                     <p className="text-secondary-on-dark">{machine.location}</p>
+                                    <p className="mt-3 max-w-2xl text-sm text-slate-400">
+                                        Quick view of health, live telemetry, waveform behavior, and maintenance priority for this machine.
+                                    </p>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(machine.status)}`}>
-                                    {getStatusText(machine.status)}
-                                </span>
-                            </div>
-                            <div className="mt-4">
-                                <button
-                                    onClick={handleExportCsv}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
-                                >
-                                    <i data-lucide="download" className="w-4 h-4 mr-2"></i>
-                                    Export Machine Data (CSV)
-                                </button>
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        onClick={() => openAiWithPrompt(`Check ${machine.name} status and explain maintenance timing`)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+                                    >
+                                        <i data-lucide="bot" className="w-4 h-4 mr-2"></i>
+                                        Ask AI
+                                    </button>
+                                    <button
+                                        onClick={scrollToMaintenance}
+                                        className="bg-slate-800 hover:bg-slate-700 text-slate-100 px-4 py-2 rounded-lg transition-colors flex items-center border border-slate-600"
+                                    >
+                                        <i data-lucide="calendar-check" className="w-4 h-4 mr-2"></i>
+                                        Maintenance
+                                    </button>
+                                    <button
+                                        onClick={handleExportCsv}
+                                        className="bg-slate-800 hover:bg-slate-700 text-slate-100 px-4 py-2 rounded-lg transition-colors flex items-center border border-slate-600"
+                                    >
+                                        <i data-lucide="download" className="w-4 h-4 mr-2"></i>
+                                        Export CSV
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         {liveDataError && machine.type === 'motor' && (
@@ -778,8 +891,51 @@
                         {machine.type === 'motor' && lastGeneratedAt && (
                             <div className="mb-4 text-sm text-secondary-on-dark">Latest data timestamp: {lastGeneratedAt}</div>
                         )}
+                        <div className="grid grid-cols-1 gap-6 mb-8 xl:grid-cols-3">
+                            <div className="detail-card card-on-dark rounded-xl p-6 xl:col-span-1">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm text-secondary-on-dark">Overall Health</p>
+                                        <h2 className={`mt-2 text-3xl font-bold ${healthSummary.color}`}>{healthSummary.status}</h2>
+                                        <p className="mt-3 text-sm text-slate-400">Reason: {healthSummary.reasons.join(', ')}.</p>
+                                    </div>
+                                    <div className="health-ring flex h-24 w-24 items-center justify-center rounded-full" style={{ '--score': `${healthSummary.score}%` }}>
+                                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-950 text-xl font-bold text-on-dark">
+                                            {healthSummary.score}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="detail-card card-on-dark rounded-xl p-6 xl:col-span-2">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <p className="text-sm text-secondary-on-dark">Recommended Next Step</p>
+                                        <h3 className="mt-2 text-xl font-semibold text-on-dark">{healthSummary.maintenance}</h3>
+                                        <p className="mt-2 text-sm text-slate-400">Next maintenance: {nextMaintenance}. Use Ask AI for a detailed reason and checklist.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => openAiWithPrompt(`When is next maintenance required for ${machine.name}? Explain the reason from live readings.`)}
+                                        className="self-start rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 lg:self-center"
+                                    >
+                                        Ask maintenance timing
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-2 xl:grid-cols-4">
+                            {metricCards.map((card) => (
+                                <div key={card.label} className="detail-card card-on-dark rounded-xl p-5">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <span className="text-sm text-secondary-on-dark">{card.label}</span>
+                                        <i data-lucide={card.icon} className="h-5 w-5 text-blue-400"></i>
+                                    </div>
+                                    <div className="text-2xl font-bold text-on-dark">{card.value} <span className="text-sm text-slate-400">{card.unit}</span></div>
+                                    <p className="mt-2 text-xs text-slate-400">{card.hint}</p>
+                                </div>
+                            ))}
+                        </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Voltage</h3>
                                 <div className="chart-container">
                                     <canvas id="voltageChart"></canvas>
@@ -790,7 +946,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Temperature</h3>
                                 <div className="chart-container">
                                     <canvas id="tempChart"></canvas>
@@ -801,7 +957,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Vibration</h3>
                                 <div className="chart-container">
                                     <canvas id="vibChart"></canvas>
@@ -812,7 +968,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Power</h3>
                                 <div className="chart-container">
                                     <canvas id="powerChart"></canvas>
@@ -823,7 +979,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Current</h3>
                                 <div className="chart-container">
                                     <canvas id="currentChart"></canvas>
@@ -834,7 +990,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Calculated Power (V × I)</h3>
                                 <div className="mt-4 text-center">
                                     <span className="text-2xl font-bold text-on-dark">
@@ -843,7 +999,7 @@
                                 </div>
                                 <p className="text-secondary-on-dark text-sm mt-3 text-center">Calculated using latest voltage × current.</p>
                             </div>
-                            <div className="card-on-dark rounded-xl shadow-md p-6">
+                            <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Power Factor</h3>
                                 <div className="mt-4 text-center">
                                     <span className="text-2xl font-bold text-on-dark">
@@ -853,32 +1009,46 @@
                                 <p className="text-secondary-on-dark text-sm mt-3 text-center">PF = measured real power ÷ calculated apparent power.</p>
                             </div>
                         </div>
-                        <div className="card-on-dark rounded-xl shadow-md p-6 mb-8">
+                        <div className="detail-card card-on-dark rounded-xl shadow-md p-6 mb-8">
                             <h3 className="text-lg font-semibold text-on-dark mb-4">Electrical Waveform</h3>
                             <div className="chart-container">
                                 <canvas id="waveformChart"></canvas>
                             </div>
                             <p className="text-secondary-on-dark text-sm mt-4">Waveform uses latest voltage/current magnitudes and calculated phase shift from power factor.</p>
                         </div>
-                        <div className="card-on-dark rounded-xl shadow-md p-6">
-                            <h3 className="text-lg font-semibold text-on-dark mb-4">Maintenance Information</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="maintenance-panel" className="detail-card card-on-dark rounded-xl shadow-md p-6">
+                            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div>
+                                    <h3 className="text-lg font-semibold text-on-dark">Maintenance Information</h3>
+                                    <p className="mt-1 text-sm text-secondary-on-dark">Actionable maintenance status calculated from the latest machine readings.</p>
+                                </div>
+                                <button
+                                    onClick={() => openAiWithPrompt(`Create a maintenance checklist for ${machine.name} based on current voltage, current, power, vibration and temperature.`)}
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                                >
+                                    Generate checklist with AI
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="rounded-lg bg-slate-900/70 p-4">
                                     <p className="text-secondary-on-dark">Last Maintenance</p>
                                     <p className="font-medium text-on-dark">{machine.lastMaintenance}</p>
                                 </div>
-                                <div>
+                                <div className="rounded-lg bg-slate-900/70 p-4">
                                     <p className="text-secondary-on-dark">Next Scheduled Maintenance</p>
-                                    <p className="font-medium text-on-dark">NA</p>
+                                    <p className="font-medium text-on-dark">{nextMaintenance}</p>
                                 </div>
-                                <div>
-                                    <p className="text-secondary-on-dark">Total Operating Hours</p>
-                                    <p className="font-medium text-on-dark">NA</p>
+                                <div className="rounded-lg bg-slate-900/70 p-4">
+                                    <p className="text-secondary-on-dark">Operating Status</p>
+                                    <p className="font-medium text-on-dark">{operatingHours}</p>
                                 </div>
-                                <div>
+                                <div className="rounded-lg bg-slate-900/70 p-4">
                                     <p className="text-secondary-on-dark">Efficiency Rating</p>
-                                    <p className="font-medium text-on-dark">NA</p>
+                                    <p className="font-medium text-on-dark">{efficiencyRating}</p>
                                 </div>
+                            </div>
+                            <div className="mt-5 rounded-lg border border-blue-900/60 bg-blue-950/30 p-4 text-sm text-blue-100">
+                                Recommended action: {healthSummary.maintenance} Main reason: {healthSummary.reasons.join(', ')}.
                             </div>
                         </div>
                     </div>
