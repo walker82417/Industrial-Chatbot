@@ -114,11 +114,24 @@
     </style>
 </head>
 <body class="brand-dark min-h-screen">
-    <div id="root"></div>
+    <div id="root">
+        <div class="min-h-screen flex items-center justify-center p-6 text-center">
+            <div class="card-on-dark rounded-2xl p-8 max-w-md shadow-2xl">
+                <div class="w-14 h-14 bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-300 text-2xl">AI</div>
+                <h1 class="text-2xl font-bold text-on-dark mb-2">Loading Industrial AI Assistant</h1>
+                <p class="text-secondary-on-dark">If this stays on screen, refresh the page or check that the browser can load the required scripts.</p>
+            </div>
+        </div>
+    </div>
     <script type="text/javascript">
         // Initial Chat Data
         const mockChatMessages = [
-            { id: 1, sender: "ai", text: "Hello! Ask me about motor health, faults, warning reasons, or what action to take.", timestamp: "10:00 AM" }
+            {
+                id: 1,
+                sender: "ai",
+                text: "Hi! I’m your Industrial AI Assistant. Ask a question or tap a quick prompt to check motor health, find faults, understand warning reasons, or decide the next maintenance action.",
+                timestamp: "Ready now"
+            }
         ];
         const expertTopics = [
             "Machine Diagnostics",
@@ -127,6 +140,12 @@
             "Energy Consumption",
             "Predictive Analysis",
             "Fault Detection"
+        ];
+        const quickPrompts = [
+            "Check current machine status",
+            "Is there any fault right now?",
+            "Why is the warning happening?",
+            "What maintenance action should I take?"
         ];
     </script>
     <script type="text/babel">
@@ -402,12 +421,6 @@
 
                 const [bestIntent, bestScore] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
                 return bestScore > 0 ? bestIntent : 'health_status';
-                const q = question.toLowerCase();
-                if (/(healthy|health|safe|status|normal)/.test(q)) return 'health_status';
-                if (/(fault|problem|issue|failure|abnormal)/.test(q)) return 'fault_detection';
-                if (/(why|reason|cause|increasing|increase)/.test(q)) return 'reason_analysis';
-                if (/(should|recommend|action|do now|stop|maintenance)/.test(q)) return 'recommendation';
-                return 'general';
             };
 
             const AI_MODEL_ENDPOINT_KEY = 'industrialAiModelEndpoint';
@@ -480,32 +493,46 @@
                 const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : 'N/A';
 
                 const contextLine = `Live analysis → Prediction: ${predictionText}, Fault: ${faultText}, Confidence: ${confidenceText}, Source: ${source}, Voltage: ${data.voltage} V, Current: ${data.current} A, Power: ${data.power} W, Vibration: ${data.vibration}, Temperature: ${data.temperature} °F, Timestamp: ${generatedAt}.`;
+                const friendlyTip = 'Tip: You can ask follow-up questions like “why?”, “is it safe?”, or “what should I do next?”';
 
                 if (intent === 'health_status') {
-                    if (prediction === 0) return `✅ Motor appears healthy and operating in normal range.\n${contextLine}`;
-                    if (prediction === 1) return `⚠️ Motor is in warning condition. Preventive checks are recommended.\n${contextLine}`;
-                    return `🚨 Motor health is critical. Immediate intervention is advised.\n${contextLine}`;
+                    if (prediction === 0) return `✅ Motor appears healthy and operating in normal range.\n${contextLine}
+${friendlyTip}`;
+                    if (prediction === 1) return `⚠️ Motor is in warning condition. Preventive checks are recommended.\n${contextLine}
+${friendlyTip}`;
+                    return `🚨 Motor health is critical. Immediate intervention is advised.\n${contextLine}
+${friendlyTip}`;
                 }
 
                 if (intent === 'fault_detection') {
-                    if (fault === 1) return `⚠️ Fault detected: probable bearing-related issue.\n${contextLine}`;
-                    return `✅ No major fault signature detected at the moment.\n${contextLine}`;
+                    if (fault === 1) return `⚠️ Fault detected: probable bearing-related issue.\n${contextLine}
+${friendlyTip}`;
+                    return `✅ No major fault signature detected at the moment.\n${contextLine}
+${friendlyTip}`;
                 }
 
                 if (intent === 'reason_analysis') {
-                    if (data.temperature >= 78 && data.vibration >= 4) return `Temperature rise is likely linked to mechanical friction/bearing degradation.\n${contextLine}`;
-                    if (data.temperature >= 78) return `Temperature is elevated; check cooling, lubrication, and load conditions.\n${contextLine}`;
-                    if (data.vibration >= 4) return `Higher vibration indicates possible imbalance/misalignment or bearing wear.\n${contextLine}`;
-                    return `No dominant abnormal driver found in the latest sample; continue monitoring trend.\n${contextLine}`;
+                    if (data.temperature >= 78 && data.vibration >= 4) return `Temperature rise is likely linked to mechanical friction/bearing degradation.\n${contextLine}
+${friendlyTip}`;
+                    if (data.temperature >= 78) return `Temperature is elevated; check cooling, lubrication, and load conditions.\n${contextLine}
+${friendlyTip}`;
+                    if (data.vibration >= 4) return `Higher vibration indicates possible imbalance/misalignment or bearing wear.\n${contextLine}
+${friendlyTip}`;
+                    return `No dominant abnormal driver found in the latest sample; continue monitoring trend.\n${contextLine}
+${friendlyTip}`;
                 }
 
                 if (intent === 'recommendation') {
-                    if (prediction === 2) return `🛑 Recommendation: stop machine safely, inspect bearing and alignment, and run maintenance before restart.\n${contextLine}`;
-                    if (prediction === 1) return `🧰 Recommendation: schedule preventive maintenance and inspect bearing/lubrication soon.\n${contextLine}`;
-                    return `✅ Recommendation: continue operation and monitor periodically.\n${contextLine}`;
+                    if (prediction === 2) return `🛑 Recommendation: stop machine safely, inspect bearing and alignment, and run maintenance before restart.\n${contextLine}
+${friendlyTip}`;
+                    if (prediction === 1) return `🧰 Recommendation: schedule preventive maintenance and inspect bearing/lubrication soon.\n${contextLine}
+${friendlyTip}`;
+                    return `✅ Recommendation: continue operation and monitor periodically.\n${contextLine}
+${friendlyTip}`;
                 }
 
-                return `I can help with health status, fault detection, reason analysis, and recommendations.\n${contextLine}`;
+                return `I can help with health status, fault detection, reason analysis, and recommendations.\n${contextLine}
+${friendlyTip}`;
             };
 
             const runRealtimeAnalysis = async (question) => {
@@ -537,17 +564,18 @@
                 }
             }, [messages]);
 
-            const handleSendMessage = () => {
-                if (message.trim() === '') return;
+            const handleSendMessage = (presetMessage = message) => {
+                const outgoingText = String(presetMessage || '').trim();
+                if (outgoingText === '') return;
 
                 const newMessage = {
-                    id: messages.length + 1,
+                    id: Date.now(),
                     sender: 'user',
-                    text: message,
+                    text: outgoingText,
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
 
-                setMessages([...messages, newMessage]);
+                setMessages(prev => [...prev, newMessage]);
                 setMessage('');
                 setIsTyping(true);
 
@@ -565,7 +593,7 @@
                         const aiResponse = {
                             id: Date.now(),
                             sender: 'ai',
-                            text: `I couldn't complete live analysis right now. Please retry in a few seconds. (${error.message})`,
+                            text: `I couldn't reach the live motor feed right now, but the chat is working. Please check your internet connection and try again. Error: ${error.message}`,
                             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         };
                         setMessages(prev => [...prev, aiResponse]);
@@ -586,6 +614,10 @@
                 setMessage(`Tell me about ${topic.toLowerCase()}`);
             };
 
+            const sendPrompt = (prompt) => {
+                handleSendMessage(prompt);
+            };
+
             return (
                 <div className="flex flex-col h-screen">
                     <NavBar />
@@ -595,27 +627,41 @@
                         <div className="flex-1 flex flex-col">
                             {/* Chat Header */}
                             <div className="card-on-dark border-b border-slate-800 p-4">
-                                <div className="flex items-center">
-                                    <div className="w-10 h-10 bg-blue-900 rounded-full flex items-center justify-center mr-3">
-                                        <i data-lucide="bot" className="w-5 h-5 text-blue-400"></i>
+                                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-center">
+                                        <div className="w-10 h-10 bg-blue-900 rounded-full flex items-center justify-center mr-3">
+                                            <i data-lucide="bot" className="w-5 h-5 text-blue-400"></i>
+                                        </div>
+                                        <div>
+                                            <h2 className="font-semibold text-on-dark">Industrial AI Assistant</h2>
+                                            <p className="text-sm text-secondary-on-dark">Ready to analyze live ThingSpeak motor data</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h2 className="font-semibold text-on-dark">Industrial AI Assistant</h2>
-                                        <p className="text-sm text-secondary-on-dark">Online - Ready to help</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {quickPrompts.map((prompt) => (
+                                            <button
+                                                key={prompt}
+                                                onClick={() => sendPrompt(prompt)}
+                                                disabled={isTyping}
+                                                className="rounded-full border border-blue-500/40 bg-blue-950/70 px-3 py-1 text-xs text-blue-200 hover:bg-blue-900 disabled:opacity-50"
+                                            >
+                                                {prompt}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Chat Messages */}
                             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-slate-950">
-                                <div className="max-w-3xl mx-auto">
+                                <div className="max-w-3xl mx-auto min-h-full">
                                     {messages.map(msg => (
                                         <div
                                             key={msg.id}
                                             className={`mb-4 chat-message ${msg.sender === 'user' ? 'text-right' : ''}`}
                                         >
-                                            <div className={`inline-block max-w-xs md:max-w-md px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'card-on-dark border border-slate-700 text-on-dark'}`}>
-                                                <p>{msg.text}</p>
+                                            <div className={`inline-block max-w-xs md:max-w-2xl px-4 py-3 rounded-lg shadow-lg ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'card-on-dark border border-slate-700 text-on-dark'}`}>
+                                                <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
                                                 <p className={`text-xs mt-1 ${msg.sender === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>{msg.timestamp}</p>
                                             </div>
                                         </div>
@@ -641,13 +687,13 @@
                                     <textarea
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        onKeyPress={handleKeyPress}
+                                        onKeyDown={handleKeyPress}
                                         className="flex-1 border border-slate-700 rounded-l-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-slate-900 text-on-dark"
-                                        placeholder="Type your message here..."
+                                        placeholder="Ask about machine status, faults, warning reasons, or next action..."
                                         rows={1}
                                     />
                                     <button
-                                        onClick={handleSendMessage}
+                                        onClick={() => handleSendMessage()}
                                         disabled={message.trim() === '' || isTyping}
                                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-r-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -658,7 +704,7 @@
                         </div>
 
                         {/* Expert Topics Sidebar */}
-                        <div className="w-64 card-on-dark border-l border-slate-800 p-4 flex flex-col">
+                        <div className="hidden lg:flex w-72 card-on-dark border-l border-slate-800 p-4 flex-col">
                             <h3 className="font-semibold text-on-dark mb-4">Expert Topics</h3>
                             <div className="space-y-2 mb-8">
                                 {expertTopics.map((topic, index) => (
@@ -674,13 +720,13 @@
 
                             <h3 className="font-semibold text-on-dark mb-4">Quick Actions</h3>
                             <div className="space-y-2">
-                                <button className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
+                                <button onClick={() => sendPrompt('Check current machine status')} className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
                                     Check Machine Status
                                 </button>
-                                <button className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
+                                <button onClick={() => sendPrompt('What maintenance action should I take?')} className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
                                     Schedule Maintenance
                                 </button>
-                                <button className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
+                                <button onClick={() => sendPrompt('Generate a short live motor health report')} className="w-full text-left bg-blue-900 hover:bg-blue-800 rounded-lg px-4 py-2 transition-colors text-blue-300">
                                     Generate Report
                                 </button>
                             </div>
