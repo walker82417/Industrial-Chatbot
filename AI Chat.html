@@ -711,6 +711,10 @@ ${dataLine}`;
                 handleSendMessage(prompt, action);
             };
 
+            const sendPrompt = (prompt) => {
+                handleSendMessage(prompt);
+            };
+
             return (
                 <div className="flex flex-col h-screen">
                     <NavBar />
