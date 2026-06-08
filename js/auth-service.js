@@ -35,9 +35,25 @@ window.industrialAuthService = {
       throw new Error("Firebase is not configured yet.");
     }
 
-    const { auth } = window.industrialFirebase;
+    const { auth, database } = window.industrialFirebase;
     const credential = await auth.signInWithEmailAndPassword(email, password);
-    return credential.user;
+    const { user } = credential;
+
+    if (database) {
+      try {
+        const snapshot = await database.ref(`users/${user.uid}/subscription`).once('value');
+        const subscription = snapshot.val();
+        if (subscription) {
+          window.localStorage.setItem('subscription', JSON.stringify(subscription));
+        } else {
+          window.localStorage.removeItem('subscription');
+        }
+      } catch (error) {
+        console.error('Could not restore subscription after sign in.', error);
+      }
+    }
+
+    return user;
   },
 
   async sendPasswordReset(email) {

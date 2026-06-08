@@ -179,6 +179,8 @@
             const [profileData, setProfileData] = React.useState(null);
             const [profileLoading, setProfileLoading] = React.useState(true);
             const [profileError, setProfileError] = React.useState('');
+            const [aiModelEndpoint, setAiModelEndpoint] = React.useState(() => localStorage.getItem('industrialAiModelEndpoint') || '');
+            const [aiModelSaved, setAiModelSaved] = React.useState(false);
 
             React.useEffect(() => {
                 lucide.createIcons();
@@ -261,6 +263,12 @@
 
             const handleUpgradeSubscription = () => {
                 window.location.href = "subscription.html";
+            };
+
+            const handleSaveAiModelEndpoint = () => {
+                localStorage.setItem('industrialAiModelEndpoint', aiModelEndpoint.trim());
+                setAiModelSaved(true);
+                setTimeout(() => setAiModelSaved(false), 2500);
             };
 
             const getSubscriptionStatus = () => {
@@ -661,6 +669,28 @@
                                                             <i data-lucide="plus" className="w-8 h-8 text-slate-400 mx-auto mb-2"></i>
                                                             <p className="text-secondary-on-dark">Database</p>
                                                         </button>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <h3 className="font-medium text-on-dark mb-4">External Fault Model</h3>
+                                                    <div className="bg-slate-800 rounded-lg p-4">
+                                                        <p className="text-sm text-secondary-on-dark mb-3">Paste your live prediction endpoint here so AI Chat can use your trained fault detection model.</p>
+                                                        <div className="flex flex-col md:flex-row gap-3">
+                                                            <input
+                                                                value={aiModelEndpoint}
+                                                                onChange={(e) => setAiModelEndpoint(e.target.value)}
+                                                                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-on-dark focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                placeholder="https://your-model-endpoint/predict"
+                                                            />
+                                                            <button
+                                                                onClick={handleSaveAiModelEndpoint}
+                                                                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors"
+                                                            >
+                                                                Save Model URL
+                                                            </button>
+                                                        </div>
+                                                        {aiModelSaved && <p className="text-green-400 text-sm mt-3">Model URL saved. AI Chat will use it for future decisions.</p>}
                                                     </div>
                                                 </div>
 

@@ -78,6 +78,16 @@
         .pricing-card.featured:hover {
             transform: scale(1.05) translateY(-10px);
         }
+
+        @keyframes successPulse {
+            0% { transform: scale(0.85); opacity: 0.6; }
+            60% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-pulse {
+            animation: successPulse 0.7s ease-out forwards;
+        }
     </style>
 </head>
 <body class="brand-dark min-h-screen">
@@ -200,11 +210,13 @@
         // Subscription Component
         const Subscription = () => {
             const [selectedPlan, setSelectedPlan] = React.useState('premium');
+            const [isProcessing, setIsProcessing] = React.useState(false);
+            const [successPlan, setSuccessPlan] = React.useState('');
 
             React.useEffect(() => {
                 // Initialize Lucide icons
                 lucide.createIcons();
-            }, []);
+            }, [successPlan]);
 
             const plans = [
                 {
@@ -257,20 +269,65 @@
                 }
             ];
 
-            const handleSubscribe = (planId) => {
-                // Save subscription to localStorage
-                localStorage.setItem('subscription', JSON.stringify({
-                    plan: planId,
-                    timestamp: new Date().toISOString()
-                }));
+            const handleSubscribe = async (planId) => {
+                setIsProcessing(true);
+                setSuccessPlan('');
 
-                alert(`You have successfully subscribed to the ${planId} plan!`);
-                window.location.href = "dashboard.html";
+                const now = new Date();
+                const expiresAt = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+                const auth = window.industrialFirebase && window.industrialFirebase.auth;
+                const database = window.industrialFirebase && window.industrialFirebase.database;
+                const currentUser = auth && auth.currentUser;
+                const subscription = {
+                    plan: planId,
+                    timestamp: now.toISOString(),
+                    startDate: now.toISOString(),
+                    expiresAt: expiresAt.toISOString(),
+                    status: 'active',
+                    userId: currentUser ? currentUser.uid : localStorage.getItem('userId'),
+                    userEmail: currentUser ? currentUser.email : localStorage.getItem('userEmail')
+                };
+
+                try {
+                    localStorage.setItem('subscription', JSON.stringify(subscription));
+                    if (database && subscription.userId) {
+                        await database.ref(`users/${subscription.userId}/subscription`).set(subscription);
+                    }
+                    setSuccessPlan(planId);
+                    setTimeout(() => {
+                        window.location.href = "dashboard.html";
+                    }, 1800);
+                } catch (error) {
+                    console.error('Failed to save subscription:', error);
+                    setIsProcessing(false);
+                    alert('Subscription saved locally, but cloud sync failed. Please try again if it does not appear after login.');
+                }
             };
 
             return (
                 <div>
                     <NavBar />
+                    {(isProcessing || successPlan) && (
+                        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-6">
+                            <div className="card-on-dark rounded-2xl p-8 max-w-md w-full text-center border border-blue-500/60 shadow-2xl shadow-blue-900/40">
+                                {!successPlan ? (
+                                    <>
+                                        <div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto mb-5"></div>
+                                        <h2 className="text-2xl font-bold text-on-dark mb-2">Activating subscription...</h2>
+                                        <p className="text-secondary-on-dark">Securing your 30-day access and syncing it to your account.</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-20 h-20 bg-green-900 rounded-full flex items-center justify-center mx-auto mb-5 success-pulse">
+                                            <i data-lucide="check" className="w-10 h-10 text-green-300"></i>
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-on-dark mb-2">Subscription Activated!</h2>
+                                        <p className="text-secondary-on-dark">Your {successPlan} plan is valid for 30 days. Redirecting to dashboard...</p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <div className="p-8">
                         <div className="max-w-6xl mx-auto">
                             <div className="text-center mb-12">
@@ -313,8 +370,9 @@
                                                         : 'bg-slate-800 hover:bg-slate-700 text-on-dark'
                                                 }`}
                                                 onClick={() => handleSubscribe(plan.id)}
+                                                disabled={isProcessing}
                                             >
-                                                {plan.cta}
+                                                {isProcessing && selectedPlan === plan.id ? 'Processing...' : plan.cta}
                                             </button>
                                         </div>
                                     </div>
