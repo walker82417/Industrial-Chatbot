@@ -193,37 +193,37 @@
                     cnc: {
                         temp: { base: 70, drift: 0.15, volatility: 1.2, max: 85 },
                         vib: { base: 3.5, volatility: 2.8, max: 6.0 },
-                        current: { base: 18, volatility: 3.5, spikeChance: 0.15, max: 30 },
+                        current: { base: 3.0, volatility: 0.6, spikeChance: 0.15, max: 5 },
                         voltage: { base: 425, volatility: 0.8, max: 450 }
                     },
                     press: {
                         temp: { base: 65, drift: 0.08, volatility: 0.6, max: 80 },
                         vib: { base: 2.8, volatility: 2.2, max: 5.5 },
-                        current: { base: 25, volatility: 6.0, spikeChance: 0.25, max: 40 },
+                        current: { base: 3.8, volatility: 0.8, spikeChance: 0.25, max: 5 },
                         voltage: { base: 425, volatility: 1.2, max: 460 }
                     },
                     assembly: {
                         temp: { base: 75, drift: 0.12, volatility: 1.5, max: 90 },
                         vib: { base: 4.2, volatility: 3.5, max: 7.0 },
-                        current: { base: 15, volatility: 2.0, spikeChance: 0.08, max: 25 },
+                        current: { base: 2.7, volatility: 0.5, spikeChance: 0.08, max: 5 },
                         voltage: { base: 425, volatility: 0.6, max: 445 }
                     },
                     packaging: {
                         temp: { base: 60, drift: 0.05, volatility: 0.8, max: 75 },
                         vib: { base: 2.2, volatility: 1.8, max: 4.5 },
-                        current: { base: 12, volatility: 2.5, spikeChance: 0.05, max: 20 },
+                        current: { base: 2.2, volatility: 0.5, spikeChance: 0.05, max: 5 },
                         voltage: { base: 425, volatility: 0.4, max: 440 }
                     },
                     robot: {
                         temp: { base: 68, drift: 0.10, volatility: 1.0, max: 82 },
                         vib: { base: 3.0, volatility: 2.5, max: 5.8 },
-                        current: { base: 20, volatility: 4.0, spikeChance: 0.12, max: 32 },
+                        current: { base: 3.2, volatility: 0.7, spikeChance: 0.12, max: 5 },
                         voltage: { base: 425, volatility: 0.7, max: 448 }
                     },
                     conveyor: {
                         temp: { base: 55, drift: 0.03, volatility: 0.5, max: 70 },
                         vib: { base: 1.8, volatility: 1.5, max: 4.0 },
-                        current: { base: 10, volatility: 1.8, spikeChance: 0.03, max: 18 },
+                        current: { base: 1.8, volatility: 0.4, spikeChance: 0.03, max: 5 },
                         voltage: { base: 425, volatility: 0.3, max: 435 }
                     }
                 };
@@ -313,6 +313,19 @@
                 }
                 setChartData(initial);
 
+                const currentChartConfig = createChartConfig(initial.labels, {
+                    label: 'Motor Current (A)',
+                    data: initial.current,
+                    borderColor: '#eab308',
+                    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0
+                });
+                currentChartConfig.options.scales.y.min = 0;
+                currentChartConfig.options.scales.y.max = 5;
+
                 const charts = {
                     vib: new Chart(document.getElementById('vibChart'), createChartConfig(initial.labels, {
                         label: 'Vibration (mm/s)',
@@ -334,16 +347,7 @@
                         fill: true,
                         pointRadius: 0
                     })),
-                    current: new Chart(document.getElementById('currentChart'), createChartConfig(initial.labels, {
-                        label: 'Motor Current (A)',
-                        data: initial.current,
-                        borderColor: '#eab308',
-                        backgroundColor: 'rgba(234, 179, 8, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 0
-                    })),
+                    current: new Chart(document.getElementById('currentChart'), currentChartConfig),
                     voltage: new Chart(document.getElementById('voltageChart'), createChartConfig(initial.labels, {
                         label: 'Voltage (V)',
                         data: initial.voltage,

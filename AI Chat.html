@@ -620,7 +620,7 @@
                 const rules = [
                     data.temperature >= 80 ? 2 : data.temperature >= 70 ? 1 : 0,
                     data.vibration >= 5 ? 2 : data.vibration >= 3 ? 1 : 0,
-                    data.current >= 25 || data.power >= 3500 ? 1 : 0,
+                    data.current >= 4.5 || data.power >= 1000 ? 1 : 0,
                     data.voltage <= 180 || data.voltage >= 260 ? 1 : 0
                 ];
                 const score = rules.reduce((sum, value) => sum + value, 0);
@@ -677,8 +677,8 @@
             };
 
             const getLoadStatus = (data) => {
-                if (data.current >= 25 || data.power >= 3500) return 'High load';
-                if (data.current >= 18 || data.power >= 2500) return 'Moderate load';
+                if (data.current >= 4.5 || data.power >= 1000) return 'High load';
+                if (data.current >= 3.5 || data.power >= 750) return 'Moderate load';
                 return 'Normal load';
             };
 
@@ -696,8 +696,8 @@
                 if (data.vibration >= 5) reasons.push(`vibration is high at ${data.vibration}`);
                 else if (data.vibration >= 3) reasons.push(`vibration is elevated at ${data.vibration}`);
 
-                if (data.current >= 25) reasons.push(`current draw is high at ${data.current} A`);
-                if (data.power >= 3500) reasons.push(`power usage is high at ${data.power} W`);
+                if (data.current >= 4.5) reasons.push(`current draw is high at ${data.current} A`);
+                if (data.power >= 1000) reasons.push(`power usage is high at ${data.power} W`);
                 if (data.powerFactor && data.powerFactor <= 0.79) reasons.push(`power factor is low at ${data.powerFactor}`);
                 if (data.voltage && (data.voltage <= 180 || data.voltage >= 260)) reasons.push(`voltage is outside the expected range at ${data.voltage} V`);
                 if (modelResult.fault === 1 && !reasons.some((reason) => reason.includes('vibration') || reason.includes('temperature'))) {
@@ -721,7 +721,7 @@
                 if (prediction === 2) return 'Required immediately — stop safely and inspect before the next restart.';
                 if (fault === 1 || data.temperature >= 78 || data.vibration >= 4) return 'Required within 24 hours because the readings show fault risk.';
                 if (prediction === 1 || data.temperature >= 70 || data.vibration >= 3) return 'Required within 48 hours to prevent the warning from becoming a failure.';
-                if (data.current >= 18 || data.power >= 2500) return 'Plan it within the next 7 days because the motor is under moderate load.';
+                if (data.current >= 3.5 || data.power >= 750) return 'Plan it within the next 7 days because the motor is under moderate load.';
                 return 'No urgent service is required; keep the next routine maintenance window, about 30 days or your normal plant schedule.';
             };
 
@@ -743,11 +743,11 @@
                     return `Voltage answer: ${data.voltage} V looks acceptable for this live sample.`;
                 }
                 if (metricFocus === 'current') {
-                    if (data.current >= 25) return `Current/load answer: ${data.current} A is high, usually due to overload, friction, or mechanical resistance.`;
+                    if (data.current >= 4.5) return `Current/load answer: ${data.current} A is high, usually due to overload, friction, or mechanical resistance.`;
                     return `Current/load answer: ${data.current} A is not showing heavy electrical load right now.`;
                 }
                 if (metricFocus === 'power') {
-                    if (data.power >= 3500) return `Power answer: ${data.power} W is high, so verify load demand and mechanical drag.`;
+                    if (data.power >= 1000) return `Power answer: ${data.power} W is high, so verify load demand and mechanical drag.`;
                     return `Power answer: ${data.power} W is within the expected live range.`;
                 }
                 return '';
@@ -811,8 +811,8 @@ ${dataLine}`;
                     ? window.industrialMotorTelemetry.normalizeFeed(feed)
                     : {
                         voltage: Number(feed.field1) || 0,
-                        current: Number(feed.field2) || 0,
-                        power: (Number(feed.field1) || 0) * (Number(feed.field2) || 0),
+                        current: Math.min(Number(feed.field2) || 0, 5),
+                        power: (Number(feed.field1) || 0) * Math.min(Number(feed.field2) || 0, 5),
                         vibration: Number(feed.field4) || 0,
                         temperature: Number(feed.field5) || 0,
                         powerFactor: 0
