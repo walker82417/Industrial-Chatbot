@@ -23,6 +23,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/motor-telemetry.js"></script>
 
     <!-- Custom Styles -->
     <style>
@@ -697,6 +698,7 @@
 
                 if (data.current >= 25) reasons.push(`current draw is high at ${data.current} A`);
                 if (data.power >= 3500) reasons.push(`power usage is high at ${data.power} W`);
+                if (data.powerFactor && data.powerFactor <= 0.79) reasons.push(`power factor is low at ${data.powerFactor}`);
                 if (data.voltage && (data.voltage <= 180 || data.voltage >= 260)) reasons.push(`voltage is outside the expected range at ${data.voltage} V`);
                 if (modelResult.fault === 1 && !reasons.some((reason) => reason.includes('vibration') || reason.includes('temperature'))) {
                     reasons.push('the model sees a bearing-fault pattern');
@@ -724,7 +726,7 @@
             };
 
             const buildDataLine = (data, generatedAt, confidenceText, source) => (
-                `Data: ${data.voltage} V, ${data.current} A, ${data.power} W, vibration ${data.vibration}, temperature ${data.temperature} °F. Updated: ${generatedAt}. Confidence: ${confidenceText}. Source: ${source}.`
+                `Data: ${data.voltage} V, ${data.current} A, ${data.power} W, PF ${data.powerFactor}, vibration ${data.vibration} mm/s, temperature ${data.temperature} °F. Updated: ${generatedAt}. Confidence: ${confidenceText}. Source: ${source}.`
             );
 
             const getMetricInsight = (metricFocus, data) => {
@@ -805,13 +807,16 @@ ${dataLine}`;
                 if (!response.ok) throw new Error('Unable to fetch live motor data');
                 const feed = await response.json();
 
-                const data = {
-                    voltage: Number(feed.field1) || 0,
-                    current: Number(feed.field2) || 0,
-                    power: Number(feed.field3) || 0,
-                    vibration: Number(feed.field4) || 0,
-                    temperature: Number(feed.field5) || 0
-                };
+                const data = window.industrialMotorTelemetry
+                    ? window.industrialMotorTelemetry.normalizeFeed(feed)
+                    : {
+                        voltage: Number(feed.field1) || 0,
+                        current: Number(feed.field2) || 0,
+                        power: (Number(feed.field1) || 0) * (Number(feed.field2) || 0),
+                        vibration: Number(feed.field4) || 0,
+                        temperature: Number(feed.field5) || 0,
+                        powerFactor: 0
+                    };
 
                 const profile = detectQueryProfile(question, requestedAction, previousContext);
                 const modelResult = await runFaultModel(data);
