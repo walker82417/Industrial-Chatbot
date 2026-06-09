@@ -226,8 +226,8 @@
                             ? window.industrialMotorTelemetry.normalizeFeed(feed)
                             : {
                                 voltage: Number(feed.field1) || 0,
-                                current: Number(feed.field2) || 0,
-                                power: (Number(feed.field1) || 0) * (Number(feed.field2) || 0),
+                                current: Math.min(Number(feed.field2) || 0, 5),
+                                power: (Number(feed.field1) || 0) * Math.min(Number(feed.field2) || 0, 5),
                                 vibration: Number(feed.field4) || 0,
                                 temperature: Number(feed.field5) || 0,
                                 powerFactor: 0,

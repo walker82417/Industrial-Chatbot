@@ -501,6 +501,8 @@
                                     }
                                 },
                                 y: {
+                                    min: 0,
+                                    max: 5,
                                     ticks: {
                                         color: '#94a3b8'
                                     },
@@ -538,7 +540,7 @@
                             scales: {
                                 x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
                                 y: { position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
-                                y1: { position: 'right', ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false } }
+                                y1: { position: 'right', min: -5, max: 5, ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false } }
                             }
                         }
                     });
@@ -559,12 +561,12 @@
                                 ? window.industrialMotorTelemetry.normalizeFeeds(feeds)
                                 : feeds.map((f) => ({
                                     voltage: Number(f.field1) || 0,
-                                    current: Number(f.field2) || 0,
-                                    power: (Number(f.field1) || 0) * (Number(f.field2) || 0),
+                                    current: Math.min(Number(f.field2) || 0, 5),
+                                    power: (Number(f.field1) || 0) * Math.min(Number(f.field2) || 0, 5),
                                     vibration: Number(f.field4) || 0,
                                     temperature: Number(f.field5) || 0,
                                     powerFactor: 0,
-                                    apparentPower: (Number(f.field1) || 0) * (Number(f.field2) || 0)
+                                    apparentPower: (Number(f.field1) || 0) * Math.min(Number(f.field2) || 0, 5)
                                 }));
                             const labels = feeds.map((f) => new Date(f.created_at).toLocaleString());
                             const volts = motorFeeds.map((f) => f.voltage);
@@ -776,7 +778,7 @@
                 if (latestVibration >= 5) { score -= 30; reasons.push('vibration is high'); }
                 else if (latestVibration >= 3) { score -= 14; reasons.push('vibration is elevated'); }
 
-                if (latestCurrent >= 25 || latestPower >= 3500) { score -= 12; reasons.push('electrical load is high'); }
+                if (latestCurrent >= 4.5 || latestPower >= 1000) { score -= 12; reasons.push('electrical load is high'); }
                 if (latestVoltage && (latestVoltage < 180 || latestVoltage > 260)) { score -= 10; reasons.push('voltage is outside safe band'); }
 
                 const safeScore = Math.max(20, Math.min(100, score));

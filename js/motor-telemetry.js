@@ -1,5 +1,6 @@
 (function createIndustrialMotorTelemetry() {
   const NOMINAL_VOLTAGE = 230;
+  const MAX_CURRENT_AMPS = 5;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const round = (value, digits = 2) => Number(value.toFixed(digits));
@@ -22,7 +23,7 @@
     const heatRisk = clamp((temperature - 74) / 14, 0, 1.4);
     const undervoltageBoost = clamp((210 - voltage) / 35, 0, 1.1);
     const loadFactor = clamp(0.42 + warmStress * 0.34 + voltageStress * 0.22 + heatRisk * 0.14 + wave * 0.05, 0.28, 1.25);
-    const current = round(clamp(8.5 + loadFactor * 13.5 + undervoltageBoost * 4.5, 7, 32), 2);
+    const current = round(clamp(1.2 + loadFactor * 2.6 + undervoltageBoost * 0.7, 0, MAX_CURRENT_AMPS), 2);
     const vibration = round(clamp(0.75 + warmStress * 1.85 + voltageStress * 1.1 + heatRisk * 1.35 + Math.max(wave, 0) * 0.45, 0.5, 6.8), 2);
     const powerFactor = round(clamp(0.91 - warmStress * 0.075 - voltageStress * 0.08 - heatRisk * 0.045 - undervoltageBoost * 0.035 + wave * 0.012, 0.68, 0.92), 3);
     const apparentPower = round(voltage * current, 1);
@@ -60,8 +61,8 @@
     if (vibration >= 5) alerts.push(`High vibration ${vibration.toFixed(2)} mm/s: possible bearing wear, imbalance, or misalignment.`);
     else if (vibration >= 3.2) alerts.push(`Vibration rising at ${vibration.toFixed(2)} mm/s: monitor bearing and mounting condition.`);
 
-    if (current >= 28) alerts.push(`High current ${current.toFixed(1)} A: reduce load and check for mechanical drag.`);
-    else if (current >= 22) alerts.push(`Current near overload at ${current.toFixed(1)} A: watch load and lubrication.`);
+    if (current >= 4.5) alerts.push(`High current ${current.toFixed(1)} A: reduce load and check for mechanical drag.`);
+    else if (current >= 4) alerts.push(`Current near overload at ${current.toFixed(1)} A: watch load and lubrication.`);
 
     if (voltage && (voltage <= 185 || voltage >= 260)) alerts.push(`Unsafe voltage ${voltage.toFixed(1)} V: verify supply before running the induction motor.`);
     else if (voltage && (voltage <= 205 || voltage >= 245)) alerts.push(`Voltage outside preferred band at ${voltage.toFixed(1)} V: current and heat may increase.`);
@@ -69,7 +70,7 @@
     if (powerFactor <= 0.74) alerts.push(`Low power factor ${powerFactor.toFixed(3)}: inspect load balance and motor efficiency.`);
     else if (powerFactor <= 0.79) alerts.push(`Power factor dropping to ${powerFactor.toFixed(3)}: motor is approaching inefficient operation.`);
 
-    if (power >= 6200) alerts.push(`Power demand ${power.toFixed(0)} W is high for this motor profile.`);
+    if (power >= 1000) alerts.push(`Power demand ${power.toFixed(0)} W is high for this motor profile.`);
 
     const severity = alerts.some((message) => /Critical|High vibration|High current|Unsafe voltage/.test(message))
       ? 'critical'
@@ -88,6 +89,7 @@
   window.industrialMotorTelemetry = {
     normalizeFeed,
     normalizeFeeds,
-    assessInductionMotor
+    assessInductionMotor,
+    MAX_CURRENT_AMPS
   };
 })();
