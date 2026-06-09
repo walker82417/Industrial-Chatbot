@@ -22,6 +22,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/motor-telemetry.js"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -554,18 +555,25 @@
                             const payload = await response.json();
                             const feeds = Array.isArray(payload.feeds) ? payload.feeds : [];
                             if (!feeds.length) throw new Error('No live feed rows');
+                            const motorFeeds = window.industrialMotorTelemetry
+                                ? window.industrialMotorTelemetry.normalizeFeeds(feeds)
+                                : feeds.map((f) => ({
+                                    voltage: Number(f.field1) || 0,
+                                    current: Number(f.field2) || 0,
+                                    power: (Number(f.field1) || 0) * (Number(f.field2) || 0),
+                                    vibration: Number(f.field4) || 0,
+                                    temperature: Number(f.field5) || 0,
+                                    powerFactor: 0,
+                                    apparentPower: (Number(f.field1) || 0) * (Number(f.field2) || 0)
+                                }));
                             const labels = feeds.map((f) => new Date(f.created_at).toLocaleString());
-                            const volts = feeds.map((f) => Number(f.field1) || 0);
-                            const currents = feeds.map((f) => Number(f.field2) || 0);
-                            const powers = feeds.map((f) => Number(f.field3) || 0);
-                            const vibrations = feeds.map((f) => Number(f.field4) || 0);
-                            const temperatures = feeds.map((f) => Number(f.field5) || 0);
-                            const calculatedPowers = feeds.map((f) => (Number(f.field1) || 0) * (Number(f.field2) || 0));
-                            const powerFactors = feeds.map((f, index) => {
-                                const apparentPower = calculatedPowers[index];
-                                const realPower = Number(f.field3) || 0;
-                                return apparentPower > 0 ? Math.max(0, Math.min(1, realPower / apparentPower)) : 0;
-                            });
+                            const volts = motorFeeds.map((f) => f.voltage);
+                            const currents = motorFeeds.map((f) => f.current);
+                            const powers = motorFeeds.map((f) => f.power);
+                            const vibrations = motorFeeds.map((f) => f.vibration);
+                            const temperatures = motorFeeds.map((f) => f.temperature);
+                            const calculatedPowers = motorFeeds.map((f) => f.apparentPower);
+                            const powerFactors = motorFeeds.map((f) => f.powerFactor);
 
                             setTimeLabels(labels);
                             setVoltageData(volts);
@@ -997,7 +1005,7 @@
                                         {calculatedPowerData.length > 0 ? Number(calculatedPowerData[calculatedPowerData.length - 1]).toFixed(1) : 'Loading...'} VA
                                     </span>
                                 </div>
-                                <p className="text-secondary-on-dark text-sm mt-3 text-center">Calculated using latest voltage × current.</p>
+                                <p className="text-secondary-on-dark text-sm mt-3 text-center">Apparent power uses live voltage × derived current.</p>
                             </div>
                             <div className="detail-card card-on-dark rounded-xl shadow-md p-6">
                                 <h3 className="text-lg font-semibold text-on-dark mb-4">Power Factor</h3>
@@ -1006,7 +1014,7 @@
                                         {powerFactorData.length > 0 ? Number(powerFactorData[powerFactorData.length - 1]).toFixed(3) : 'Loading...'}
                                     </span>
                                 </div>
-                                <p className="text-secondary-on-dark text-sm mt-3 text-center">PF = measured real power ÷ calculated apparent power.</p>
+                                <p className="text-secondary-on-dark text-sm mt-3 text-center">PF is calculated from the induction motor load estimate.</p>
                             </div>
                         </div>
                         <div className="detail-card card-on-dark rounded-xl shadow-md p-6 mb-8">
@@ -1014,7 +1022,7 @@
                             <div className="chart-container">
                                 <canvas id="waveformChart"></canvas>
                             </div>
-                            <p className="text-secondary-on-dark text-sm mt-4">Waveform uses latest voltage/current magnitudes and calculated phase shift from power factor.</p>
+                            <p className="text-secondary-on-dark text-sm mt-4">Waveform uses live voltage, derived current, and calculated phase shift from power factor.</p>
                         </div>
                         <div id="maintenance-panel" className="detail-card card-on-dark rounded-xl shadow-md p-6">
                             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

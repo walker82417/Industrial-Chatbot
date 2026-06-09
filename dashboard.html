@@ -22,6 +22,7 @@
     <script src="js/firebase-config.js"></script>
     <script src="js/firebase-init.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/motor-telemetry.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom Styles -->
@@ -251,7 +252,19 @@
                         if (!response.ok) throw new Error('Unable to fetch motor history');
                         const payload = await response.json();
                         const feeds = Array.isArray(payload.feeds) ? payload.feeds : [];
-                        setMotorHistory(feeds);
+                        const motorFeeds = window.industrialMotorTelemetry
+                            ? window.industrialMotorTelemetry.normalizeFeeds(feeds)
+                            : feeds;
+                        const latestMotor = motorFeeds[motorFeeds.length - 1];
+                        const assessment = latestMotor && window.industrialMotorTelemetry
+                            ? window.industrialMotorTelemetry.assessInductionMotor(latestMotor)
+                            : null;
+                        setMotorHistory(motorFeeds);
+                        if (assessment) {
+                            setMachines(prev => prev.map(machine => machine.id === 1
+                                ? { ...machine, status: assessment.status }
+                                : machine));
+                        }
                         setMotorLiveError('');
                     } catch (error) {
                         console.error(error);
@@ -273,13 +286,14 @@
                 const chart = new Chart(canvas, {
                     type: 'line',
                     data: {
-                        labels: motorHistory.map((feed) => new Date(feed.created_at).toLocaleTimeString()),
+                        labels: motorHistory.map((feed) => new Date(feed.capturedAt || feed.created_at).toLocaleTimeString()),
                         datasets: [
-                            { label: 'Voltage', data: motorHistory.map((f) => Number(f.field1)), borderColor: '#22c55e', tension: 0.3 },
-                            { label: 'Current', data: motorHistory.map((f) => Number(f.field2)), borderColor: '#3b82f6', tension: 0.3 },
-                            { label: 'Power', data: motorHistory.map((f) => Number(f.field3)), borderColor: '#f59e0b', tension: 0.3 },
-                            { label: 'Vibration', data: motorHistory.map((f) => Number(f.field4)), borderColor: '#ef4444', tension: 0.3 },
-                            { label: 'Temperature', data: motorHistory.map((f) => Number(f.field5)), borderColor: '#a855f7', tension: 0.3 }
+                            { label: 'Voltage', data: motorHistory.map((f) => Number(f.voltage)), borderColor: '#22c55e', tension: 0.3 },
+                            { label: 'Current (derived)', data: motorHistory.map((f) => Number(f.current)), borderColor: '#3b82f6', tension: 0.3 },
+                            { label: 'Power (calculated)', data: motorHistory.map((f) => Number(f.power)), borderColor: '#f59e0b', tension: 0.3 },
+                            { label: 'Vibration (derived)', data: motorHistory.map((f) => Number(f.vibration)), borderColor: '#ef4444', tension: 0.3 },
+                            { label: 'Temperature', data: motorHistory.map((f) => Number(f.temperature)), borderColor: '#a855f7', tension: 0.3 },
+                            { label: 'Power Factor', data: motorHistory.map((f) => Number(f.powerFactor)), borderColor: '#14b8a6', tension: 0.3, yAxisID: 'pf' }
                         ]
                     },
                     options: {
@@ -288,7 +302,14 @@
                         plugins: { legend: { labels: { color: '#cbd5e1' } } },
                         scales: {
                             x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
-                            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }
+                            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                            pf: {
+                                position: 'right',
+                                min: 0.6,
+                                max: 1,
+                                ticks: { color: '#14b8a6' },
+                                grid: { drawOnChartArea: false }
+                            }
                         }
                     }
                 });
