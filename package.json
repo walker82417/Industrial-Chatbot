@@ -1,0 +1,21 @@
+{
+  "name": "industrial-chatbot",
+  "version": "1.0.0",
+  "description": "Industrial Monitoring Web Application",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required for static HTML'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "industrial",
+    "monitoring",
+    "analytics"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1"
+  }
+}
